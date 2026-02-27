@@ -25,7 +25,7 @@ const trustItems = [
   { icon: "🌍", title: "5 Languages", sub: "Full site translation" },
 ];
 
-const HeroSection = () => {
+const HeroSection = ({ onOpenChat }: { onOpenChat?: () => void }) => {
   return (
     <section className="bg-cream px-4 pb-16 pt-11">
       <div className="mx-auto max-w-[800px] text-center">
@@ -200,7 +200,7 @@ const HeroSection = () => {
               Luma speaks your language · fills your forms · <strong className="text-forest">completely free</strong>
             </p>
             <button
-              onClick={() => console.log("Start with Luma")}
+              onClick={onOpenChat}
               className="rounded-full bg-forest px-5 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-forest-hover hover:-translate-y-0.5"
             >
               ✨ Start with Luma →
