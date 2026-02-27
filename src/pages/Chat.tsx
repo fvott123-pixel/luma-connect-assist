@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useNavigate } from "react-router-dom";
+import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -79,10 +80,25 @@ const Chat = () => {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const lastSpokenRef = useRef<number>(-1);
+  const { speak } = useTTS();
+
+  const handleVoiceResult = useCallback((text: string) => setInput(text), []);
+  const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoiceResult);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-speak new assistant messages when streaming finishes
+  useEffect(() => {
+    if (isLoading) return;
+    const last = messages[messages.length - 1];
+    if (last?.role === "assistant" && messages.length - 1 > lastSpokenRef.current) {
+      lastSpokenRef.current = messages.length - 1;
+      speak(last.content);
+    }
+  }, [messages, isLoading, speak]);
 
   const handleLangChange = (code: string) => {
     setLang(code);
@@ -214,6 +230,19 @@ const Chat = () => {
             dir={lang === "AR" ? "rtl" : undefined}
             disabled={isLoading}
           />
+          {micSupported && (
+            <button
+              onClick={toggleMic}
+              className={`rounded-xl px-4 py-2.5 text-sm transition-all ${
+                listening
+                  ? "bg-destructive text-destructive-foreground animate-pulse"
+                  : "border border-border bg-background text-foreground hover:bg-muted"
+              }`}
+              title={listening ? "Stop recording" : "Voice input"}
+            >
+              🎤
+            </button>
+          )}
           <button
             onClick={send}
             disabled={isLoading || !input.trim()}

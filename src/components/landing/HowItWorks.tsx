@@ -3,7 +3,7 @@ import LumaAvatar from "./LumaAvatar";
 const steps = [
   { num: 1, icon: "🌍", title: "Choose your language", desc: "The entire site switches instantly — questions, documents, summary. Arabic reads right to left." },
   { num: 2, icon: "💬", title: "Answer 5 questions", desc: "Luma checks your eligibility with plain-language questions. No jargon. 2 minutes." },
-  { num: 3, icon: "📸", title: "Photo your documents", desc: "Medicare card and ID. Luma reads and fills your Centrelink form. Files deleted immediately." },
+  { num: 3, icon: "📸", title: "Photo your documents", desc: "Take a photo of your Medicare card and ID. Luma reads them and fills your form automatically. Files deleted immediately after." },
   { num: 4, icon: "✉️", title: "Sign and post", desc: "Print your pre-filled form. Sign it. Post it. Payments start from the date you post." },
 ];
 
