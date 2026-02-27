@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import LumaAvatar from "./LumaAvatar";
 
 const languageCards = [
@@ -9,12 +10,12 @@ const languageCards = [
 ];
 
 const serviceCards = [
-  { icon: "♿", amount: "$1,116/fn", name: "Disability Support Pension" },
-  { icon: "🏥", amount: "Free", name: "Medicare Enrolment" },
-  { icon: "🤝", amount: "Funding", name: "NDIS Access Request" },
-  { icon: "👴", amount: "Home care", name: "Aged Care Assessment" },
-  { icon: "❤️", amount: "$800+/fn", name: "Carer Payment" },
-  { icon: "🦘", amount: "$1,020/fn", name: "Age Pension" },
+  { icon: "♿", amount: "$1,116/fn", name: "Disability Support Pension", slug: "disability-support" },
+  { icon: "🏥", amount: "Free", name: "Medicare Enrolment", slug: "medicare" },
+  { icon: "🤝", amount: "Funding", name: "NDIS Access Request", slug: "ndis-access" },
+  { icon: "👴", amount: "Home care", name: "Aged Care Assessment", slug: "aged-care" },
+  { icon: "❤️", amount: "$800+/fn", name: "Carer Payment", slug: "carer-payment" },
+  { icon: "🦘", amount: "$1,020/fn", name: "Age Pension", slug: "age-pension" },
 ];
 
 const trustItems = [
@@ -26,6 +27,7 @@ const trustItems = [
 ];
 
 const HeroSection = ({ onOpenChat }: { onOpenChat?: () => void }) => {
+  const navigate = useNavigate();
   return (
     <section className="bg-cream px-4 pb-16 pt-11">
       <div className="mx-auto max-w-[800px] text-center">
@@ -115,7 +117,7 @@ const HeroSection = ({ onOpenChat }: { onOpenChat?: () => void }) => {
             <div
               key={svc.name}
               className="card-hover group relative cursor-pointer overflow-hidden rounded-[14px] border border-cream-border bg-card p-4 text-left"
-              onClick={() => console.log(`Service: ${svc.name}`)}
+              onClick={() => navigate(`/service/${svc.slug}`)}
             >
               <span className="text-[22px]">{svc.icon}</span>
               <div className="mt-1 text-[11px] font-bold text-gold">{svc.amount}</div>
