@@ -8,12 +8,14 @@ import ImpactStats from "@/components/landing/ImpactStats";
 import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
 import LumaChatPanel from "@/components/LumaChatPanel";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Index = () => {
   const [chatOpen, setChatOpen] = useState(false);
+  const { dir } = useLanguage();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen" dir={dir}>
       <TopBar />
       <StickyNav />
       <main>
