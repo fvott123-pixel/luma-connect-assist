@@ -1,4 +1,8 @@
-const CTASection = () => (
+import { useNavigate } from "react-router-dom";
+
+const CTASection = () => {
+  const navigate = useNavigate();
+  return (
   <section className="bg-cream px-4 py-20">
     <div className="mx-auto max-w-4xl overflow-hidden rounded-[26px] border border-cream-border bg-card">
       <div className="grid grid-cols-1 gap-8 p-8 sm:p-12 md:grid-cols-2">
@@ -16,7 +20,7 @@ const CTASection = () => (
         {/* Right */}
         <div className="flex flex-col items-stretch justify-center gap-3">
           <button
-            onClick={() => console.log("Get Free Help Now")}
+            onClick={() => navigate("/chat")}
             className="rounded-full bg-forest px-6 py-3.5 text-center font-bold text-primary-foreground transition-all hover:bg-forest-hover hover:-translate-y-0.5"
           >
             🌿 Get Free Help Now →
@@ -38,6 +42,7 @@ const CTASection = () => (
       </div>
     </div>
   </section>
-);
+  );
+};
 
 export default CTASection;

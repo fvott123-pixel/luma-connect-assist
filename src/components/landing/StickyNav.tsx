@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const navLinks = ["Get Help", "How It Works", "Volunteer", "About"];
 
 const StickyNav = () => {
+  const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -49,7 +51,7 @@ const StickyNav = () => {
 
         {/* CTA */}
         <button
-          onClick={() => console.log("Get Free Help clicked")}
+          onClick={() => navigate("/chat")}
           className="rounded-full bg-forest px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all duration-200 hover:bg-forest-hover hover:-translate-y-0.5 hover:shadow-lg"
         >
           🌿 Get Free Help
