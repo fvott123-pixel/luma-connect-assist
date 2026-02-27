@@ -84,7 +84,7 @@ const LumaChatPanel = ({ open, onClose }: LumaChatPanelProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastSpokenRef = useRef<number>(-1);
-  const { speak } = useTTS();
+  const { speak, muted, toggleMute } = useTTS();
 
   const handleVoiceResult = useCallback((text: string) => setInput(text), []);
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoiceResult);
@@ -185,7 +185,10 @@ const LumaChatPanel = ({ open, onClose }: LumaChatPanelProps) => {
               </button>
             ))}
           </div>
-          <button onClick={onClose} className="ml-1 rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground">
+          <button onClick={toggleMute} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? "Unmute Luma" : "Mute Luma"}>
+            {muted ? "🔇" : "🔊"}
+          </button>
+          <button onClick={onClose} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground">
             ✕
           </button>
         </div>

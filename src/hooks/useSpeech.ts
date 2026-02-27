@@ -42,15 +42,12 @@ export function useVoiceInput(onResult: (text: string) => void) {
 /** Text-to-speech via SpeechSynthesis API */
 export function useTTS() {
   const voiceRef = useRef<SpeechSynthesisVoice | null>(null);
+  const [muted, setMuted] = useState(false);
 
-  // Pick a warm female voice once voices load
   useEffect(() => {
     const pickVoice = () => {
       const voices = window.speechSynthesis?.getVoices() ?? [];
-      // Prefer female English voices
-      const female = voices.find(
-        (v) => /female/i.test(v.name) && /en/i.test(v.lang)
-      );
+      const female = voices.find((v) => /female/i.test(v.name) && /en/i.test(v.lang));
       const samantha = voices.find((v) => /samantha|zira|karen|fiona|victoria|google.*female|google.*us/i.test(v.name));
       const englishDefault = voices.find((v) => /en/i.test(v.lang));
       voiceRef.current = female || samantha || englishDefault || voices[0] || null;
@@ -61,9 +58,8 @@ export function useTTS() {
   }, []);
 
   const speak = useCallback((text: string) => {
-    if (!window.speechSynthesis) return;
+    if (!window.speechSynthesis || muted) return;
     window.speechSynthesis.cancel();
-    // Strip emoji characters
     const clean = text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, "").trim();
     if (!clean) return;
     const utter = new SpeechSynthesisUtterance(clean);
@@ -71,12 +67,18 @@ export function useTTS() {
     utter.pitch = 1.1;
     if (voiceRef.current) utter.voice = voiceRef.current;
     window.speechSynthesis.speak(utter);
+  }, [muted]);
+
+  const toggleMute = useCallback(() => {
+    setMuted((prev) => {
+      if (!prev) window.speechSynthesis?.cancel();
+      return !prev;
+    });
   }, []);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => window.speechSynthesis?.cancel();
   }, []);
 
-  return { speak };
+  return { speak, muted, toggleMute };
 }

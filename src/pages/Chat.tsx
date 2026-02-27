@@ -81,7 +81,7 @@ const Chat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastSpokenRef = useRef<number>(-1);
-  const { speak } = useTTS();
+  const { speak, muted, toggleMute } = useTTS();
 
   const handleVoiceResult = useCallback((text: string) => setInput(text), []);
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoiceResult);
@@ -155,6 +155,18 @@ const Chat = () => {
             ← Back
           </button>
           <LumaAvatar size={36} />
+          <div className="flex-1 text-left">
+            <div className="font-serif text-sm font-bold text-primary-foreground">
+              Luma ✨ <span className="ml-2 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">NCCSA Guide</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-primary-foreground/70">
+              <span className="animate-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--mint))]" />
+              Online now
+            </div>
+          </div>
+          <button onClick={toggleMute} className="rounded-full px-2 py-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? "Unmute Luma" : "Mute Luma"}>
+            {muted ? "🔇" : "🔊"}
+          </button>
           <div className="flex-1 text-left">
             <div className="font-serif text-sm font-bold text-primary-foreground">
               Luma ✨ <span className="ml-2 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">NCCSA Guide</span>
