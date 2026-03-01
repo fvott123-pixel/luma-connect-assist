@@ -3,9 +3,19 @@ import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { toast } from "sonner";
 import type { ServiceConfig } from "@/data/services";
 
 type Msg = { role: "user" | "assistant"; content: string };
+
+const officialFormLinks: Record<string, { type: "url" | "phone"; value: string }> = {
+  "disability-support": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa466en.pdf" },
+  "age-pension": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa002en.pdf" },
+  "carer-payment": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sc001en.pdf" },
+  "medicare": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/ms004en.pdf" },
+  "ndis-access": { type: "url", value: "https://www.ndis.gov.au/applying-access-ndis/how-apply" },
+  "aged-care": { type: "phone", value: "1800 200 422" },
+};
 
 const questionKeys: Record<string, string[]> = {
   "disability-support": ["q.dsp.1", "q.dsp.2", "q.dsp.3", "q.dsp.4", "q.dsp.5"],
@@ -246,12 +256,35 @@ const EligibilityChat = ({ service }: EligibilityChatProps) => {
             </div>
           </>
         ) : (
-          <button
-            onClick={(e) => { e.preventDefault(); navigate(`/prepare-form?service=${service.slug}`); }}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-forest-hover"
-          >
-            {t("eligibility.prepareForm")}
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={(e) => { e.preventDefault(); navigate(`/prepare-form?service=${service.slug}`); }}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90"
+            >
+              📄 {t("eligibility.downloadChecklist")}
+            </button>
+            {officialFormLinks[service.slug]?.type === "url" ? (
+              <a
+                href={officialFormLinks[service.slug].value}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10"
+              >
+                📥 {t("eligibility.getOfficialForm")}
+              </a>
+            ) : officialFormLinks[service.slug]?.type === "phone" ? (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  navigator.clipboard.writeText("1800200422");
+                  toast.success(t("prepare.phoneCopied"));
+                }}
+                className="w-full rounded-xl border-2 border-primary bg-card py-3 text-sm font-bold text-primary transition-all hover:bg-primary/10"
+              >
+                📞 {t("eligibility.callAgedCare")} — 1800 200 422
+              </button>
+            ) : null}
+          </div>
         )}
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
           {t("eligibility.privacy")}

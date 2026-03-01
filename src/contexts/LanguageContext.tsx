@@ -169,6 +169,9 @@ export const translations: Translations = {
   "eligibility.typeAnswer": { EN: "Or type your answer…", AR: "أو اكتب إجابتك…", NP: "वा तपाईंको उत्तर टाइप गर्नुहोस्…", IT: "Oppure scrivi la tua risposta…", VI: "Hoặc nhập câu trả lời…" },
   "eligibility.send": { EN: "Send", AR: "إرسال", NP: "पठाउनुहोस्", IT: "Invia", VI: "Gửi" },
   "eligibility.prepareForm": { EN: "Prepare my form →", AR: "جهز نموذجي →", NP: "मेरो फारम तयार गर्नुहोस् →", IT: "Prepara il mio modulo →", VI: "Chuẩn bị biểu mẫu →" },
+  "eligibility.downloadChecklist": { EN: "Download my checklist →", AR: "تحميل قائمتي →", NP: "मेरो चेकलिस्ट डाउनलोड गर्नुहोस् →", IT: "Scarica la mia checklist →", VI: "Tải danh sách kiểm tra →" },
+  "eligibility.getOfficialForm": { EN: "Get my official form →", AR: "احصل على النموذج الرسمي →", NP: "मेरो आधिकारिक फारम प्राप्त गर्नुहोस् →", IT: "Ottieni il modulo ufficiale →", VI: "Lấy biểu mẫu chính thức →" },
+  "eligibility.callAgedCare": { EN: "Call My Aged Care", AR: "اتصل بـ My Aged Care", NP: "My Aged Care मा कल गर्नुहोस्", IT: "Chiama My Aged Care", VI: "Gọi My Aged Care" },
   "eligibility.privacy": { EN: "🔒 Private · Not stored · Not connected to immigration", AR: "🔒 خاص · غير مخزن · غير متصل بالهجرة", NP: "🔒 निजी · भण्डारण गरिएको छैन · आप्रवासनसँग जोडिएको छैन", IT: "🔒 Privato · Non memorizzato · Non collegato all'immigrazione", VI: "🔒 Riêng tư · Không lưu trữ · Không liên quan đến nhập cư" },
   "eligibility.check": { EN: "Eligibility Check", AR: "فحص الأهلية", NP: "योग्यता जाँच", IT: "Verifica Idoneità", VI: "Kiểm tra Đủ điều kiện" },
 
