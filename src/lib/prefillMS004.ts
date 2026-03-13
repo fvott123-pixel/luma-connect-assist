@@ -35,11 +35,30 @@ const FIELD_MAP: Record<keyof MS004FormData, { page: number; x: number; y: numbe
 };
 
 export async function prefillMS004(data: MS004FormData): Promise<Uint8Array> {
-  const formUrl = "/forms/CUsersfvottDesktopGovernment Forms/Medicare/ms004en.pdf";
-  const existingPdfBytes = await fetch(formUrl).then((res) => {
-    if (!res.ok) throw new Error(`Failed to load MS004 PDF: ${res.status}`);
-    return res.arrayBuffer();
-  });
+  // Try multiple possible paths for the PDF
+  const paths = [
+    "/forms/CUsersfvottDesktopGovernment%20Forms/Medicare/ms004en.pdf",
+    "/forms/CUsersfvottDesktopGovernment Forms/Medicare/ms004en.pdf",
+    "/forms/Medicare/ms004en.pdf",
+  ];
+
+  let existingPdfBytes: ArrayBuffer | null = null;
+  for (const formUrl of paths) {
+    try {
+      const res = await fetch(formUrl);
+      if (res.ok) {
+        existingPdfBytes = await res.arrayBuffer();
+        console.log("Loaded MS004 PDF from:", formUrl);
+        break;
+      }
+    } catch {
+      // try next path
+    }
+  }
+
+  if (!existingPdfBytes) {
+    throw new Error("Could not load MS004 PDF from any known path. Check that the file exists in public/forms/.");
+  }
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
