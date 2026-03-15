@@ -336,16 +336,6 @@ const FillForm = () => {
         </div>
       </main>
       <Footer />
-      {showReview && (
-        <FieldReviewModal
-          answers={answers}
-          onConfirm={doDownload}
-          onFixField={(fieldId) => {
-            setShowReview(false);
-            setFixFieldId(fieldId);
-          }}
-        />
-      )}
     </div>
   );
 };
