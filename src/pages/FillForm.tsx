@@ -145,7 +145,6 @@ const FillForm = () => {
   };
 
   const handleDownloadClick = () => {
-    // Check for suspicious fields first
     const issues = getSuspiciousFields(answers);
     if (issues.length > 0) {
       setShowReview(true);
@@ -154,83 +153,109 @@ const FillForm = () => {
     doDownload();
   };
 
-  const printFallback = () => {
-    console.log("PDF: Using window.print() fallback");
-    // Add print CSS to hide everything except form preview
-    const style = document.createElement("style");
-    style.id = "print-pdf-style";
-    style.textContent = `
-      @media print {
-        body * { visibility: hidden !important; }
-        #form-preview-panel, #form-preview-panel * { visibility: visible !important; }
-        #form-preview-panel {
-          position: absolute !important; left: 0 !important; top: 0 !important;
-          width: 100% !important; overflow: visible !important; height: auto !important;
-        }
-      }
-    `;
-    document.head.appendChild(style);
-    window.print();
-    setTimeout(() => style.remove(), 1000);
-    setIsGenerating(false);
-    toast.success("Print dialog opened — save as PDF from there.");
-  };
-
   const doDownload = async () => {
     setShowReview(false);
     setIsGenerating(true);
     console.log("Starting PDF generation");
 
-    // 30-second timeout
     const timeoutId = setTimeout(() => {
-      console.error("PDF generation timed out after 30s");
+      console.error("PDF generation timed out after 15s");
       setIsGenerating(false);
       toast.error("Something went wrong. Please try again.");
-    }, 30000);
+    }, 15000);
 
     try {
       const previewEl = document.getElementById("form-preview-panel");
       if (!previewEl) {
         console.error("PDF: Form preview panel not found");
         clearTimeout(timeoutId);
-        printFallback();
+        setIsGenerating(false);
+        toast.error("Could not find form preview. Please try again.");
         return;
       }
 
-      console.log("Capturing HTML canvas");
-      const canvas = await html2canvas(previewEl, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        windowWidth: previewEl.scrollWidth,
-        windowHeight: previewEl.scrollHeight,
+      // Swap signature pad for static image during capture
+      const interactiveEls = previewEl.querySelectorAll(".signature-interactive");
+      const staticEls = previewEl.querySelectorAll(".signature-static");
+      interactiveEls.forEach(el => (el as HTMLElement).style.display = "none");
+      staticEls.forEach(el => (el as HTMLElement).style.display = "block");
+
+      // Remove highlight styles temporarily
+      const highlighted = previewEl.querySelectorAll(".bg-green-200, .ring-2");
+      highlighted.forEach(el => {
+        (el as HTMLElement).dataset.origClass = (el as HTMLElement).className;
+        (el as HTMLElement).className = (el as HTMLElement).className
+          .replace(/bg-green-200/g, "bg-green-50")
+          .replace(/ring-2\s*ring-green-500\s*rounded-sm/g, "");
       });
 
+      // Capture all .sa466-page elements individually for proper A4 pages
+      const pages = previewEl.querySelectorAll(".sa466-page");
+      const A4_W = 210; // mm
+      const A4_H = 297; // mm
+
+      console.log(`Capturing ${pages.length} form pages`);
+
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      for (let i = 0; i < pages.length; i++) {
+        console.log(`Capturing page ${i + 1} of ${pages.length}`);
+        const page = pages[i] as HTMLElement;
+
+        const canvas = await html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight,
+        });
+
+        const imgData = canvas.toDataURL("image/png");
+
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, 0, A4_W, A4_H);
+      }
+
+      // If no .sa466-page found, capture the whole panel as fallback
+      if (pages.length === 0) {
+        console.log("No pages found, capturing entire panel");
+        const canvas = await html2canvas(previewEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: "#ffffff",
+        });
+        const imgData = canvas.toDataURL("image/png");
+        const pxW = canvas.width;
+        const pxH = canvas.height;
+        const pdfH = (pxH * A4_W) / pxW;
+        pdf.addImage(imgData, "PNG", 0, 0, A4_W, pdfH);
+      }
+
       console.log("Converting to PDF");
-      const imgData = canvas.toDataURL("image/png");
-      const pxWidth = canvas.width;
-      const pxHeight = canvas.height;
-      // A4 width in mm
-      const pdfWidth = 210;
-      const pdfHeight = (pxHeight * pdfWidth) / pxWidth;
-
-      const pdf = new jsPDF({ orientation: pdfHeight > pdfWidth ? "portrait" : "landscape", unit: "mm", format: [pdfWidth, pdfHeight] });
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-
-      const today = new Date().toLocaleDateString("en-AU");
-      pdf.save(`SA466-DSP-prefilled-${today}.pdf`);
+      const today = new Date().toLocaleDateString("en-AU").replace(/\//g, "-");
+      pdf.save(`SA466-DSP-completed-${today}.pdf`);
       console.log("PDF ready — downloading");
+
+      // Restore signature pad & highlights
+      interactiveEls.forEach(el => (el as HTMLElement).style.display = "");
+      staticEls.forEach(el => (el as HTMLElement).style.display = "");
+      highlighted.forEach(el => {
+        if ((el as HTMLElement).dataset.origClass) {
+          (el as HTMLElement).className = (el as HTMLElement).dataset.origClass!;
+        }
+      });
 
       clearTimeout(timeoutId);
       clearSession(slug);
       setIsGenerating(false);
       toast.success("Your completed form has been downloaded! 🎉");
     } catch (err) {
-      console.error("PDF html2canvas error:", err);
+      console.error("PDF generation error:", err);
       clearTimeout(timeoutId);
-      // Fallback to window.print()
-      printFallback();
+      setIsGenerating(false);
+      toast.error("Something went wrong generating your PDF. Please try again.");
     }
   };
 
