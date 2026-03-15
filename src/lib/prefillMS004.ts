@@ -35,29 +35,33 @@ const FIELD_MAP: Record<keyof MS004FormData, { page: number; x: number; y: numbe
 };
 
 export async function prefillMS004(data: MS004FormData): Promise<Uint8Array> {
-  // Try multiple possible paths for the PDF
+  const origin = window.location.origin;
   const paths = [
-    "/forms/CUsersfvottDesktopGovernment%20Forms/Medicare/ms004en.pdf",
-    "/forms/CUsersfvottDesktopGovernment Forms/Medicare/ms004en.pdf",
-    "/forms/Medicare/ms004en.pdf",
+    `${origin}/forms/Medicare/ms004en.pdf`,
+    `${origin}/forms/CUsersfvottDesktopGovernment%20Forms/Medicare/ms004en.pdf`,
   ];
 
   let existingPdfBytes: ArrayBuffer | null = null;
-  for (const formUrl of paths) {
+  for (const url of paths) {
     try {
-      const res = await fetch(formUrl);
+      console.log("Fetching PDF from:", url);
+      const res = await fetch(url);
       if (res.ok) {
         existingPdfBytes = await res.arrayBuffer();
-        console.log("Loaded MS004 PDF from:", formUrl);
+        console.log("Successfully loaded MS004 PDF from:", url);
         break;
+      } else {
+        console.warn(`Failed to fetch ${url}: ${res.status} ${res.statusText}`);
       }
-    } catch {
-      // try next path
+    } catch (err) {
+      console.warn(`Fetch error for ${url}:`, err);
     }
   }
 
   if (!existingPdfBytes) {
-    throw new Error("Could not load MS004 PDF from any known path. Check that the file exists in public/forms/.");
+    const msg = "Could not load MS004 PDF. Tried: " + paths.join(", ");
+    alert(msg);
+    throw new Error(msg);
   }
 
   const pdfDoc = await PDFDocument.load(existingPdfBytes);
