@@ -22,7 +22,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
  * Fill in SA466 DSP form PDF with collected answers at their mapped coordinates.
  * Handles text, tick marks, and split date fields.
  */
-export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
+export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
   const origin = window.location.origin;
   const paths = [
     `${origin}/forms/DSP/sa466en.pdf`,
