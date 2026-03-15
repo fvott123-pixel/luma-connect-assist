@@ -285,10 +285,37 @@ const PrepareForm = () => {
               <div className="rounded-2xl border border-border bg-secondary px-4 py-3 text-sm text-foreground">
                 {isMedicare
                   ? t("prepare.medicareIntro")
-                  : <>{t("prepare.desc")} — <strong>{serviceName}</strong></>
+                  : <>Let me help you prepare your <strong>{serviceName}</strong> application.</>
                 }
               </div>
             </div>
+
+            {/* ID Document Upload for AI extraction */}
+            <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center space-y-3">
+              <div className="text-2xl">📸</div>
+              <p className="text-sm font-bold text-foreground">Upload your licence or passport to auto-fill your details</p>
+              <p className="text-xs text-muted-foreground">Take a photo or upload an image — Luma will read it and fill in your form automatically</p>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleIdUploadAndExtract(file);
+                }}
+                className="mx-auto block w-full max-w-xs rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1 file:text-xs file:font-bold file:text-primary-foreground"
+                disabled={extracting}
+              />
+              {extracting && (
+                <div className="flex items-center justify-center gap-2 text-sm text-primary">
+                  <span className="animate-spin">⏳</span> Reading your ID…
+                </div>
+              )}
+              {idUploaded && !extracting && (
+                <p className="text-sm font-bold text-primary">✓ Details extracted — check the fields below</p>
+              )}
+            </div>
+
             <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
               {isMedicare ? (
                 /* ── Medicare-specific fields ── */
