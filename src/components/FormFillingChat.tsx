@@ -492,9 +492,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     setIsLoading(true);
     setInput("");
 
-    // Recalculate active fields with new answers
+    // Find the next unanswered field, skipping any already answered
     const updatedActive = getActiveFields(newAnswers, prefilled);
-    const nextIdx = fieldIndex + 1;
+    let nextIdx = fieldIndex + 1;
+    while (nextIdx < updatedActive.length) {
+      const v = newAnswers[updatedActive[nextIdx].id];
+      if (!v || v.trim() === "") break;
+      nextIdx++;
+    }
 
     if (nextIdx >= updatedActive.length) {
       // Show signature notice then complete
