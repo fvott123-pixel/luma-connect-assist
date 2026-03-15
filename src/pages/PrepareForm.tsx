@@ -241,7 +241,7 @@ const PrepareForm = () => {
     toast.success(t("prepare.phoneCopied"));
   };
 
-  const officialLink = officialFormLinks[selectedService];
+  const officialLink = officialFormPaths[selectedService];
 
   const inputClass = "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30";
   const selectClass = "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30";
