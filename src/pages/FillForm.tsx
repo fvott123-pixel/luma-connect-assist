@@ -232,6 +232,8 @@ const FillForm = () => {
               onFieldAnswered={setLastAnsweredField}
               resumedAnswers={resumedSession?.answers}
               resumedFieldIndex={resumedSession?.fieldIndex}
+              fixFieldId={fixFieldId}
+              onFixFieldHandled={() => setFixFieldId(null)}
             />
           </div>
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
