@@ -244,10 +244,19 @@ const FillForm = () => {
       setIsGenerating(false);
       toast.success("Your completed form has been downloaded! 🎉");
     } catch (err) {
-      console.error("PDF generation error:", err);
+      console.error("PDF generation error, falling back to print:", err);
       clearTimeout(timeoutId);
+      // Fallback: window.print() with print CSS
+      try {
+        const style = document.createElement("style");
+        style.setAttribute("data-print-fallback", "true");
+        style.textContent = `@media print { body * { visibility: hidden !important; } #form-preview-panel, #form-preview-panel * { visibility: visible !important; } #form-preview-panel { position: absolute; left: 0; top: 0; width: 100%; } }`;
+        document.head.appendChild(style);
+        window.print();
+        document.head.removeChild(style);
+      } catch (_) { /* ignore */ }
       setIsGenerating(false);
-      toast.error("Something went wrong generating your PDF. Please try again.");
+      toast.error("PDF generation failed. Used browser print as fallback.");
     }
   };
 
