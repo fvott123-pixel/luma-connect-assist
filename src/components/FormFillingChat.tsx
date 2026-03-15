@@ -223,7 +223,26 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (field.signatureNotice) return undefined; // signature is a notice
     if (field.fieldType === "select" && field.options) {
       return field.options.map(o => ({ label: o, value: o }));
+  }
+
+  /** Translate a non-English answer to English via edge function */
+  async function translateToEnglish(text: string, sourceLang: string): Promise<string> {
+    try {
+      const resp = await fetch(TRANSLATE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ text, sourceLang }),
+      });
+      if (!resp.ok) return text;
+      const data = await resp.json();
+      return data.translated || text;
+    } catch {
+      return text;
     }
+  }
     return undefined;
   }
 
