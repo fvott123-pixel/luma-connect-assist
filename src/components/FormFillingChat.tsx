@@ -114,7 +114,7 @@ function getCurrentSection(questionNumber: number): string {
   return sec?.title || "";
 }
 
-const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered, resumedAnswers, resumedFieldIndex, onSaveAndExit }: FormFillingChatProps) => {
+const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered, resumedAnswers, resumedFieldIndex, onSaveAndExit, fixFieldId, onFixFieldHandled }: FormFillingChatProps) => {
   const { lang, dir, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({ ...(prefilled || {}), ...(resumedAnswers || {}) });
