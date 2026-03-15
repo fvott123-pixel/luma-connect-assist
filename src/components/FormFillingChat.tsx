@@ -5,8 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
 import { saveSession } from "@/lib/formSession";
 import { parseNaturalDate, type DateParseResult } from "@/lib/dateParser";
-
-const TRANSLATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-answer`;
+import { mapYesNo, TODAY_CONFIRMATION_PATTERN, getTodayFormatted, translateToEnglish } from "@/lib/i18nFormUtils";
 
 type Msg = {
   role: "user" | "assistant";
@@ -229,24 +228,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     return undefined;
   }
 
-  /** Translate a non-English answer to English via edge function */
-  async function translateToEnglish(text: string, sourceLang: string): Promise<string> {
-    try {
-      const resp = await fetch(TRANSLATE_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text, sourceLang }),
-      });
-      if (!resp.ok) return text;
-      const data = await resp.json();
-      return data.translated || text;
-    } catch {
-      return text;
-    }
-  }
+  // translateToEnglish is now imported from i18nFormUtils
 
   // Correction phrases detection — match anywhere in the input, not just exact match
   const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake|era sbagliato|ho sbagliato|torna indietro|cambia risposta|errore|غلط|गलत भयो|sai rồi|lỗi rồi)\b/i;
@@ -278,26 +260,50 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (correctionMode) {
       const correctedField = SA466_FIELDS.find(f => f.id === correctionMode.fieldId);
       if (correctedField) {
-        const newAnswers = { ...answers, [correctionMode.fieldId]: cleanAnswer };
-        setAnswers(newAnswers);
-        onAnswersChange?.(newAnswers);
-        onFieldAnswered?.(correctionMode.fieldId);
-        setMessages(prev => [...prev,
-          { role: "user", content: cleanAnswer },
-          { role: "assistant", content: `✅ Updated! "${correctedField.label}" is now "${cleanAnswer}". Let's continue where we left off.`, buttons: currentField ? getButtonsForField(currentField) : undefined },
-        ]);
-        // Re-ask current question
-        if (currentField) {
-          setTimeout(() => {
-            setMessages(prev => [...prev, {
-              role: "assistant",
-              content: currentField.lumaQuestion,
-              buttons: getButtonsForField(currentField) || undefined,
-            }]);
-          }, 500);
+        // Translate correction if non-English and not a select/date field
+        const applyCorrection = (finalValue: string) => {
+          const newAnswers = { ...answers, [correctionMode.fieldId]: finalValue };
+          setAnswers(newAnswers);
+          onAnswersChange?.(newAnswers);
+          onFieldAnswered?.(correctionMode.fieldId);
+          setMessages(prev => [...prev,
+            { role: "user", content: cleanAnswer },
+            { role: "assistant", content: `✅ ✔️`, buttons: currentField ? getButtonsForField(currentField) : undefined },
+          ]);
+          if (currentField) {
+            setTimeout(() => {
+              setMessages(prev => [...prev, {
+                role: "assistant",
+                content: currentField.lumaQuestion,
+                buttons: getButtonsForField(currentField) || undefined,
+              }]);
+            }, 500);
+          }
+          setCorrectionMode(null);
+        };
+
+        // Map yes/no first
+        const yesNo = mapYesNo(cleanAnswer);
+        if (yesNo && correctedField.fieldType === "select") {
+          applyCorrection(yesNo);
+          return;
         }
+
+        // Translate non-English free text corrections
+        if (lang !== "EN" && correctedField.fieldType !== "date" && correctedField.fieldType !== "select") {
+          setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+          setIsLoading(true);
+          translateToEnglish(cleanAnswer, lang).then(translated => {
+            applyCorrection(translated);
+            setIsLoading(false);
+          });
+          return;
+        }
+
+        applyCorrection(cleanAnswer);
+      } else {
+        setCorrectionMode(null);
       }
-      setCorrectionMode(null);
       return;
     }
 
@@ -327,12 +333,22 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
-    // ── "Yes/today" patterns in any language for declaration date ──
-    const YES_TODAY_PATTERN = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine|sì|si|certo|oggi|va bene|نعم|اليوم|हो|आज|có|hôm nay|vâng)$/i;
-    
-    if (currentField.id === "declarationDate" && YES_TODAY_PATTERN.test(cleanAnswer)) {
-      const now = new Date();
-      const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    // ── Map yes/no in any language for select fields ──
+    if (currentField.fieldType === "select") {
+      const yesNo = mapYesNo(cleanAnswer);
+      if (yesNo) {
+        setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+        applyAnswer(yesNo);
+        return;
+      }
+      // If select field, use the value as-is (options are already in English)
+      applyAnswer(cleanAnswer);
+      return;
+    }
+
+    // ── Declaration date: auto-fill today if user says "yes/today" in any language ──
+    if (currentField.id === "declarationDate" && TODAY_CONFIRMATION_PATTERN.test(cleanAnswer)) {
+      const todayStr = getTodayFormatted();
       setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
       setMessages(prev => [...prev, {
         role: "assistant",
@@ -348,7 +364,6 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       
       if (dateResult) {
         if (dateResult.type === "needDayMonth") {
-          // User typed just a year like "1999"
           setMessages(prev => [...prev,
             { role: "user", content: cleanAnswer },
             { role: "assistant", content: `I have the year ${dateResult.year}. What day and month? For example: 15/03/${dateResult.year}` },
@@ -356,7 +371,6 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
           return;
         }
 
-        // Parsed successfully — show confirmation
         const finalDate = dateResult.parsed;
         setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
         setMessages(prev => [...prev, {
@@ -370,7 +384,6 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         return;
       }
 
-      // Handle date confirmation buttons
       if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
         const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
         applyAnswer(confirmed);
@@ -387,8 +400,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
 
     console.log(`Answer received: ${cleanAnswer}`);
 
-    // ── Translate non-English answers to English before saving ──
-    if (lang !== "EN" && currentField.fieldType !== "date" && currentField.fieldType !== "select") {
+    // ── Translate ALL non-English free text answers to English before saving ──
+    if (lang !== "EN") {
       setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
       setIsLoading(true);
       translateToEnglish(cleanAnswer, lang).then(translated => {
@@ -444,7 +457,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       if (nextField.signatureNotice) {
         // Signature notice — tell user and auto-advance
         let text = "";
-        const prompt = `The user finished all data questions. Tell them warmly in ${LANG_NAMES[lang] || "English"}: "${nextField.signatureNotice}" Then say you'll now finish up. Keep it to 2 sentences.`;
+        const sigLangInstruction = lang !== "EN" ? `IMPORTANT: Respond ENTIRELY in ${LANG_NAMES[lang] || "English"}.` : "";
+        const prompt = `${sigLangInstruction} The user finished all data questions. Tell them warmly in ${LANG_NAMES[lang] || "English"}: "${nextField.signatureNotice}" Then say you'll now finish up. Keep it to 2 sentences.`;
         streamResponse({
           messages: [{ role: "user", content: prompt }],
           onDelta: (chunk) => {
