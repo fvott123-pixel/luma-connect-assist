@@ -6,6 +6,7 @@ import Footer from "@/components/landing/Footer";
 import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
+import FieldReviewModal, { getSuspiciousFields } from "@/components/FieldReviewModal";
 import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
