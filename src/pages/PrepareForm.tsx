@@ -22,13 +22,13 @@ const nameKeys: Record<string, string> = {
   "age-pension": "service.agePension",
 };
 
-const officialFormLinks: Record<string, { type: "url" | "phone"; value: string }> = {
-  "disability-support": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa466en.pdf" },
-  "age-pension": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa002en.pdf" },
-  "carer-payment": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sc001en.pdf" },
-  "medicare": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/ms004en.pdf" },
-  "ndis-access": { type: "url", value: "https://www.ndis.gov.au/applying-access-ndis/how-apply" },
-  "aged-care": { type: "phone", value: "1800 200 422" },
+const officialFormPaths: Record<string, { type: "url" | "phone"; path: string }> = {
+  "disability-support": { type: "url", path: "/forms/DSP/sa466en.pdf" },
+  "age-pension": { type: "url", path: "/forms/AgePension/sa002en.pdf" },
+  "carer-payment": { type: "url", path: "/forms/CarerPayment/sa489en.pdf" },
+  "medicare": { type: "url", path: "/forms/Medicare/ms004en.pdf" },
+  "ndis-access": { type: "url", path: "https://www.ndis.gov.au/applying-access-ndis/how-apply" },
+  "aged-care": { type: "phone", path: "1800 200 422" },
 };
 
 const docsToAttach: Record<string, string[]> = {
@@ -241,7 +241,7 @@ const PrepareForm = () => {
     toast.success(t("prepare.phoneCopied"));
   };
 
-  const officialLink = officialFormLinks[selectedService];
+  const officialLink = officialFormPaths[selectedService];
 
   const inputClass = "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30";
   const selectClass = "w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30";
@@ -479,14 +479,20 @@ const PrepareForm = () => {
 
             {/* Download official form */}
             {officialLink && officialLink.type === "url" && (
-              <a href={officialLink.value} target="_blank" rel="noopener noreferrer" className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10">
+              <a
+                href={officialLink.path.startsWith("http") ? officialLink.path : `${window.location.origin}${officialLink.path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10"
+                onClick={() => console.log("Fetching PDF from:", officialLink.path.startsWith("http") ? officialLink.path : `${window.location.origin}${officialLink.path}`)}
+              >
                 📥 {t("prepare.downloadOfficial")}
               </a>
             )}
             {officialLink && officialLink.type === "phone" && (
               <div className="rounded-2xl border border-border bg-card p-4 text-center space-y-2">
                 <p className="text-sm text-foreground">{t("prepare.agedCareCall")}</p>
-                <p className="text-xl font-bold text-primary">{officialLink.value}</p>
+                <p className="text-xl font-bold text-primary">{officialLink.path}</p>
                 <button onClick={copyPhone} className="rounded-xl border border-primary bg-card px-5 py-2 text-sm font-bold text-primary hover:bg-primary/10 transition-colors">
                   📋 {t("prepare.copyNumber")}
                 </button>
