@@ -148,7 +148,6 @@ const FillForm = () => {
 
   const doDownload = async () => {
     setIsGenerating(true);
-    setIsGenerating(true);
     console.log("Starting PDF generation");
 
     const timeoutId = setTimeout(() => {
