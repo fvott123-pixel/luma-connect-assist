@@ -198,7 +198,7 @@ const FillForm = () => {
       <main className="flex flex-col flex-1 min-h-0 px-4 py-2 mx-auto w-full max-w-7xl">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
-            ← Back
+            {t("form.back")}
           </button>
           {isComplete && (
             <button
