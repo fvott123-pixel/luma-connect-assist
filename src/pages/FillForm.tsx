@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TopBar from "@/components/landing/TopBar";
 import StickyNav from "@/components/landing/StickyNav";
@@ -7,10 +7,11 @@ import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
 import FieldReviewModal, { getSuspiciousFields } from "@/components/FieldReviewModal";
-import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const serviceNames: Record<string, string> = {
   "disability-support": "Disability Support Pension (SA466)",
