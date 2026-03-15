@@ -29,7 +29,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
   return null;
 }
 
-const PdfPreview = ({ answers }: PdfPreviewProps) => {
+const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
   const [canvasMode, setCanvasMode] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

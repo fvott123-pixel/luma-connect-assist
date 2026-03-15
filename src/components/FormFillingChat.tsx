@@ -215,6 +215,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
 
     const newAnswers = { ...answers, [currentField.id]: cleanAnswer };
     setAnswers(newAnswers);
+    onFieldAnswered?.(currentField.id);
     setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
     setIsLoading(true);
     setInput("");
