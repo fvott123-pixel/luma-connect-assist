@@ -225,10 +225,63 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     return undefined;
   }
 
+  // Correction phrases detection
+  const CORRECTION_PATTERNS = /^(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last)$/i;
+
+  const [correctionMode, setCorrectionMode] = useState<{ fieldId: string; fieldIndex: number; label: string } | null>(null);
+
+  const handleUndo = () => {
+    if (fieldIndex <= 0 || isLoading || isComplete) return;
+    const prevIdx = fieldIndex - 1;
+    const prevField = activeFields[prevIdx];
+    if (!prevField) return;
+
+    setCorrectionMode({ fieldId: prevField.id, fieldIndex: prevIdx, label: prevField.label });
+    setMessages(prev => [...prev, {
+      role: "assistant",
+      content: `No problem! Let me fix that. What should the answer be for "${prevField.lumaQuestion}"?`,
+      buttons: getButtonsForField(prevField) || undefined,
+    }]);
+  };
+
   const processAnswer = (answerText: string) => {
     if (!currentField || isLoading || isComplete) return;
     const cleanAnswer = answerText.trim();
     if (!cleanAnswer) return;
+
+    // ── Handle correction mode: apply corrected answer then resume ──
+    if (correctionMode) {
+      const correctedField = SA466_FIELDS.find(f => f.id === correctionMode.fieldId);
+      if (correctedField) {
+        const newAnswers = { ...answers, [correctionMode.fieldId]: cleanAnswer };
+        setAnswers(newAnswers);
+        onAnswersChange?.(newAnswers);
+        onFieldAnswered?.(correctionMode.fieldId);
+        setMessages(prev => [...prev,
+          { role: "user", content: cleanAnswer },
+          { role: "assistant", content: `✅ Updated! "${correctedField.label}" is now "${cleanAnswer}". Let's continue where we left off.`, buttons: currentField ? getButtonsForField(currentField) : undefined },
+        ]);
+        // Re-ask current question
+        if (currentField) {
+          setTimeout(() => {
+            setMessages(prev => [...prev, {
+              role: "assistant",
+              content: currentField.lumaQuestion,
+              buttons: getButtonsForField(currentField) || undefined,
+            }]);
+          }, 500);
+        }
+      }
+      setCorrectionMode(null);
+      return;
+    }
+
+    // ── Detect correction phrases — do NOT treat as form answer ──
+    if (CORRECTION_PATTERNS.test(cleanAnswer)) {
+      setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+      handleUndo();
+      return;
+    }
 
     // Handle signature notice — just move forward
     if (currentField.signatureNotice) {
@@ -551,18 +604,29 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
             </button>
           </div>
           <div className="mt-1.5 flex items-center justify-between">
-            <button
-              onClick={() => {
-                const code = saveSession(serviceSlug, lang, answers, fieldIndex);
-                setSessionCode(code);
-                const qNum = currentField?.questionNumber || fieldIndex + 1;
-                setMessages(prev => [...prev, { role: "assistant", content: `💾 Your progress is saved! You can return any time and continue from question ${qNum}.\n\nYour session code: **${code}** — write it down in case you need it later.` }]);
-                onSaveAndExit?.();
-              }}
-              className="text-[10px] font-semibold text-primary hover:underline"
-            >
-              💾 Save & continue later
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const code = saveSession(serviceSlug, lang, answers, fieldIndex);
+                  setSessionCode(code);
+                  const qNum = currentField?.questionNumber || fieldIndex + 1;
+                  setMessages(prev => [...prev, { role: "assistant", content: `💾 Your progress is saved! You can return any time and continue from question ${qNum}.\n\nYour session code: **${code}** — write it down in case you need it later.` }]);
+                  onSaveAndExit?.();
+                }}
+                className="text-[10px] font-semibold text-primary hover:underline"
+              >
+                💾 Save & continue later
+              </button>
+              {fieldIndex > 0 && !correctionMode && (
+                <button
+                  onClick={handleUndo}
+                  disabled={isLoading}
+                  className="text-[10px] font-semibold text-destructive hover:underline disabled:opacity-50"
+                >
+                  ↩ Undo last answer
+                </button>
+              )}
+            </div>
             {sessionCode && (
               <span className="text-[10px] text-muted-foreground">
                 Session: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
