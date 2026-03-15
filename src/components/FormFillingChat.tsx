@@ -133,7 +133,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const totalQuestions = SA466_FIELDS.filter(f => f.id !== "declarationComplete" && f.id !== "declarationSignature").length;
   const answeredCount = Object.keys(answers).filter(k => {
     const v = answers[k];
-    return v && v.toLowerCase() !== "none" && v.toLowerCase() !== "skip";
+    return v && v.trim().length > 0;
   }).length;
   const progress = Math.round((answeredCount / totalQuestions) * 100);
 
