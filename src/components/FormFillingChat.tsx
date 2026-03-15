@@ -260,26 +260,50 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (correctionMode) {
       const correctedField = SA466_FIELDS.find(f => f.id === correctionMode.fieldId);
       if (correctedField) {
-        const newAnswers = { ...answers, [correctionMode.fieldId]: cleanAnswer };
-        setAnswers(newAnswers);
-        onAnswersChange?.(newAnswers);
-        onFieldAnswered?.(correctionMode.fieldId);
-        setMessages(prev => [...prev,
-          { role: "user", content: cleanAnswer },
-          { role: "assistant", content: `✅ Updated! "${correctedField.label}" is now "${cleanAnswer}". Let's continue where we left off.`, buttons: currentField ? getButtonsForField(currentField) : undefined },
-        ]);
-        // Re-ask current question
-        if (currentField) {
-          setTimeout(() => {
-            setMessages(prev => [...prev, {
-              role: "assistant",
-              content: currentField.lumaQuestion,
-              buttons: getButtonsForField(currentField) || undefined,
-            }]);
-          }, 500);
+        // Translate correction if non-English and not a select/date field
+        const applyCorrection = (finalValue: string) => {
+          const newAnswers = { ...answers, [correctionMode.fieldId]: finalValue };
+          setAnswers(newAnswers);
+          onAnswersChange?.(newAnswers);
+          onFieldAnswered?.(correctionMode.fieldId);
+          setMessages(prev => [...prev,
+            { role: "user", content: cleanAnswer },
+            { role: "assistant", content: `✅ ✔️`, buttons: currentField ? getButtonsForField(currentField) : undefined },
+          ]);
+          if (currentField) {
+            setTimeout(() => {
+              setMessages(prev => [...prev, {
+                role: "assistant",
+                content: currentField.lumaQuestion,
+                buttons: getButtonsForField(currentField) || undefined,
+              }]);
+            }, 500);
+          }
+          setCorrectionMode(null);
+        };
+
+        // Map yes/no first
+        const yesNo = mapYesNo(cleanAnswer);
+        if (yesNo && correctedField.fieldType === "select") {
+          applyCorrection(yesNo);
+          return;
         }
+
+        // Translate non-English free text corrections
+        if (lang !== "EN" && correctedField.fieldType !== "date" && correctedField.fieldType !== "select") {
+          setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+          setIsLoading(true);
+          translateToEnglish(cleanAnswer, lang).then(translated => {
+            applyCorrection(translated);
+            setIsLoading(false);
+          });
+          return;
+        }
+
+        applyCorrection(cleanAnswer);
+      } else {
+        setCorrectionMode(null);
       }
-      setCorrectionMode(null);
       return;
     }
 
