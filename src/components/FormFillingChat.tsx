@@ -604,18 +604,29 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
             </button>
           </div>
           <div className="mt-1.5 flex items-center justify-between">
-            <button
-              onClick={() => {
-                const code = saveSession(serviceSlug, lang, answers, fieldIndex);
-                setSessionCode(code);
-                const qNum = currentField?.questionNumber || fieldIndex + 1;
-                setMessages(prev => [...prev, { role: "assistant", content: `💾 Your progress is saved! You can return any time and continue from question ${qNum}.\n\nYour session code: **${code}** — write it down in case you need it later.` }]);
-                onSaveAndExit?.();
-              }}
-              className="text-[10px] font-semibold text-primary hover:underline"
-            >
-              💾 Save & continue later
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  const code = saveSession(serviceSlug, lang, answers, fieldIndex);
+                  setSessionCode(code);
+                  const qNum = currentField?.questionNumber || fieldIndex + 1;
+                  setMessages(prev => [...prev, { role: "assistant", content: `💾 Your progress is saved! You can return any time and continue from question ${qNum}.\n\nYour session code: **${code}** — write it down in case you need it later.` }]);
+                  onSaveAndExit?.();
+                }}
+                className="text-[10px] font-semibold text-primary hover:underline"
+              >
+                💾 Save & continue later
+              </button>
+              {fieldIndex > 0 && !correctionMode && (
+                <button
+                  onClick={handleUndo}
+                  disabled={isLoading}
+                  className="text-[10px] font-semibold text-destructive hover:underline disabled:opacity-50"
+                >
+                  ↩ Undo last answer
+                </button>
+              )}
+            </div>
             {sessionCode && (
               <span className="text-[10px] text-muted-foreground">
                 Session: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
