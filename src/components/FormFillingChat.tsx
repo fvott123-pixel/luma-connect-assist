@@ -220,17 +220,20 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     initRef.current = true;
 
     const mergedAnswers = { ...(prefilled || {}), ...(resumedAnswers || {}) };
-    const isResuming = resumedFieldIndex !== undefined && resumedFieldIndex > 0;
 
     const fields = getActiveFields(mergedAnswers, prefilled);
-    if (fields.length === 0) {
-      setMessages([{ role: "assistant", content: "All your details have been filled from your ID! 🎉 Your form is ready to download." }]);
+    // Always start from the first unanswered field — never re-ask answered questions
+    const startIdx = findFirstUnanswered(fields, mergedAnswers);
+    const isResuming = startIdx > 0;
+
+    if (startIdx >= fields.length) {
+      setMessages([{ role: "assistant", content: "All your details have been filled! 🎉 Your form is ready to download." }]);
       setIsComplete(true);
       onComplete?.();
       return;
     }
 
-    const startIdx = isResuming ? Math.min(resumedFieldIndex!, fields.length - 1) : 0;
+    setFieldIndex(startIdx);
     const field = fields[startIdx];
     const langName = LANG_NAMES[lang] || "English";
     const sectionTitle = getCurrentSection(field.questionNumber);
