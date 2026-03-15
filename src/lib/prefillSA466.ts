@@ -68,7 +68,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
       const pos = field.tickPositions[value];
       page.drawText("✓", {
         x: pos.x,
-        y: pos.y,
+        y: pos.y + Y_OFFSET,
         size: 12,
         font: fontBold,
         color,
