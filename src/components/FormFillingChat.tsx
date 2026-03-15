@@ -133,7 +133,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const totalQuestions = SA466_FIELDS.filter(f => f.id !== "declarationComplete" && f.id !== "declarationSignature").length;
   const answeredCount = Object.keys(answers).filter(k => {
     const v = answers[k];
-    return v && v.toLowerCase() !== "none" && v.toLowerCase() !== "skip";
+    return v && v.trim().length > 0;
   }).length;
   const progress = Math.round((answeredCount / totalQuestions) * 100);
 
@@ -225,8 +225,11 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     return undefined;
   }
 
-  // Correction phrases detection
-  const CORRECTION_PATTERNS = /^(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last)$/i;
+  // Correction phrases detection — match anywhere in the input, not just exact match
+  const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake)\b/i;
+
+  // Skip/none phrases for detecting skip attempts
+  const SKIP_PATTERNS = /^(none|skip|n\/a|na|not applicable|no answer|pass|don't have|dont have|i don't know|i dont know|nothing|nil|—|-|\.{1,3})$/i;
 
   const [correctionMode, setCorrectionMode] = useState<{ fieldId: string; fieldIndex: number; label: string } | null>(null);
 
@@ -280,6 +283,19 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (CORRECTION_PATTERNS.test(cleanAnswer)) {
       setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
       handleUndo();
+      return;
+    }
+
+    // ── Block skip/none on required fields ──
+    if (currentField.required && !currentField.signatureNotice && SKIP_PATTERNS.test(cleanAnswer)) {
+      setMessages(prev => [...prev,
+        { role: "user", content: cleanAnswer },
+        {
+          role: "assistant",
+          content: `This field is required by Centrelink — I need an answer to continue. If you're not sure, just give your best answer and a Centrelink officer can help you later. 😊\n\n${currentField.lumaQuestion}`,
+          buttons: getButtonsForField(currentField) || undefined,
+        },
+      ]);
       return;
     }
 
