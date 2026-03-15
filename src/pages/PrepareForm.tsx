@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { prefillMS004, downloadPdfBlob } from "@/lib/prefillMS004";
 import type { MS004FormData } from "@/lib/prefillMS004";
 
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-id`;
+
 const nameKeys: Record<string, string> = {
   "disability-support": "service.dsp",
   "medicare": "service.medicare",
