@@ -31,6 +31,7 @@ const FillForm = () => {
   const [recoveryCode, setRecoveryCode] = useState("");
   const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [downloadComplete, setDownloadComplete] = useState(false);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
