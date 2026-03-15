@@ -286,6 +286,19 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
+    // ── Block skip/none on required fields ──
+    if (currentField.required && !currentField.signatureNotice && SKIP_PATTERNS.test(cleanAnswer)) {
+      setMessages(prev => [...prev,
+        { role: "user", content: cleanAnswer },
+        {
+          role: "assistant",
+          content: `This field is required by Centrelink — I need an answer to continue. If you're not sure, just give your best answer and a Centrelink officer can help you later. 😊\n\n${currentField.lumaQuestion}`,
+          buttons: getButtonsForField(currentField) || undefined,
+        },
+      ]);
+      return;
+    }
+
     // Handle signature notice — just move forward
     if (currentField.signatureNotice) {
       advanceToNext(cleanAnswer);
