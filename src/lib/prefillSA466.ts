@@ -81,9 +81,9 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
       const parts = parseDateParts(value);
       if (parts) {
         const boxes = field.dateBoxes;
-        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
-        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
-        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
+        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY + Y_OFFSET, size: fontSize, font, color });
+        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY + Y_OFFSET, size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY + Y_OFFSET, size: fontSize, font, color });
         continue;
       }
     }
