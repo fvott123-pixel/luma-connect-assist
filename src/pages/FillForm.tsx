@@ -9,8 +9,7 @@ import PdfPreview from "@/components/PdfPreview";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
-import html2canvas from "html2canvas";
-import jsPDF from "jspdf";
+import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 
 const serviceNames: Record<string, string> = {
   "disability-support": "Disability Support Pension (SA466)",
