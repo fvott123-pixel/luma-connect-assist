@@ -1,4 +1,5 @@
 import { SA466_FIELDS } from "@/lib/formMaps/sa466Fields";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface FieldReviewModalProps {
   answers: Record<string, string>;
@@ -33,11 +34,46 @@ function getSuspiciousFields(answers: Record<string, string>) {
   return issues;
 }
 
+const REVIEW_I18N: Record<string, { title: string; desc: (n: number) => string; fix: string; confirm: string }> = {
+  EN: {
+    title: "A few fields might need checking",
+    desc: (n) => `I noticed ${n} field${n > 1 ? "s" : ""} that look incomplete or unusual. Would you like to review them before downloading?`,
+    fix: "Fix",
+    confirm: "✅ Looks good — download anyway",
+  },
+  IT: {
+    title: "Alcuni campi potrebbero necessitare di una revisione",
+    desc: (n) => `Ho notato ${n} camp${n > 1 ? "i" : "o"} che sembrano incompleti o insoliti. Vuoi rivederli prima di scaricare?`,
+    fix: "Correggi",
+    confirm: "✅ Va bene — scarica comunque",
+  },
+  AR: {
+    title: "بعض الحقول قد تحتاج مراجعة",
+    desc: (n) => `لاحظت ${n} حقل${n > 1 ? "" : ""} يبدو غير مكتمل أو غير عادي. هل تريد مراجعتها قبل التحميل؟`,
+    fix: "إصلاح",
+    confirm: "✅ يبدو جيدًا — تحميل على أي حال",
+  },
+  NP: {
+    title: "केही क्षेत्रहरू जाँच गर्न आवश्यक हुन सक्छ",
+    desc: (n) => `मैले ${n} क्षेत्र${n > 1 ? "हरू" : ""} अपूर्ण वा असामान्य देखें। डाउनलोड गर्नु अघि समीक्षा गर्नुहुन्छ?`,
+    fix: "सच्याउनुहोस्",
+    confirm: "✅ ठीक छ — जसरी भए पनि डाउनलोड गर्नुहोस्",
+  },
+  VN: {
+    title: "Một số trường có thể cần kiểm tra",
+    desc: (n) => `Tôi nhận thấy ${n} trường có vẻ chưa hoàn chỉnh hoặc bất thường. Bạn có muốn xem lại trước khi tải xuống không?`,
+    fix: "Sửa",
+    confirm: "✅ Trông ổn — tải xuống",
+  },
+};
+
 const FieldReviewModal = ({ answers, onConfirm, onFixField }: FieldReviewModalProps) => {
+  const { lang } = useLanguage();
   const issues = getSuspiciousFields(answers);
+  const i18n = REVIEW_I18N[lang] || REVIEW_I18N.EN;
 
   if (issues.length === 0) {
-    return null; // No issues — caller should proceed directly
+    return null;
   }
 
   return (
@@ -46,10 +82,10 @@ const FieldReviewModal = ({ answers, onConfirm, onFixField }: FieldReviewModalPr
         <div className="text-center mb-4">
           <span className="text-3xl">⚠️</span>
           <h2 className="mt-2 font-serif text-lg font-bold text-foreground">
-            A few fields might need checking
+            {i18n.title}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            I noticed {issues.length} field{issues.length > 1 ? "s" : ""} that look incomplete or unusual. Would you like to review them before downloading?
+            {i18n.desc(issues.length)}
           </p>
         </div>
 
@@ -62,7 +98,7 @@ const FieldReviewModal = ({ answers, onConfirm, onFixField }: FieldReviewModalPr
               <div>
                 <p className="text-xs font-bold text-foreground">{issue.label}</p>
                 <p className="text-[10px] text-muted-foreground">
-                  Current value: <span className="font-mono font-bold text-orange-600">"{issue.value}"</span>
+                  <span className="font-mono font-bold text-orange-600">"{issue.value}"</span>
                   {" · "}{issue.reason}
                 </p>
               </div>
@@ -70,7 +106,7 @@ const FieldReviewModal = ({ answers, onConfirm, onFixField }: FieldReviewModalPr
                 onClick={() => onFixField(issue.fieldId)}
                 className="ml-2 shrink-0 rounded-lg border border-primary bg-primary/10 px-3 py-1 text-[10px] font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all"
               >
-                Fix
+                {i18n.fix}
               </button>
             </div>
           ))}
@@ -81,7 +117,7 @@ const FieldReviewModal = ({ answers, onConfirm, onFixField }: FieldReviewModalPr
             onClick={onConfirm}
             className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
           >
-            ✅ Looks good — download anyway
+            {i18n.confirm}
           </button>
         </div>
       </div>
