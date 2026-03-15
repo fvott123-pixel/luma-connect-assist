@@ -1,10 +1,26 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-import { SA466_FIELDS } from "./sa466FormFields";
+import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
 export type SA466FormData = Record<string, string>;
 
 /**
+ * Parse a date string into parts for writing into separate boxes.
+ */
+function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
+  const m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) {
+    return {
+      dd: m[1].padStart(2, "0"),
+      mm: m[2].padStart(2, "0"),
+      yyyy: m[3].length === 2 ? `19${m[3]}` : m[3],
+    };
+  }
+  return null;
+}
+
+/**
  * Fill in SA466 DSP form PDF with collected answers at their mapped coordinates.
+ * Handles text, tick marks, and split date fields.
  */
 export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
   const origin = window.location.origin;
@@ -33,24 +49,52 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
 
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontSize = 10;
   const color = rgb(0, 0, 0);
   const pages = pdfDoc.getPages();
 
   for (const field of SA466_FIELDS) {
     const value = data[field.id];
-    if (!value || value.toLowerCase() === "none" || value.toLowerCase() === "same") continue;
+    if (!value || value.toLowerCase() === "none" || value.toLowerCase() === "skip") continue;
+    if (field.id === "declarationComplete" || field.id === "declarationSignature") continue;
 
-    const page = pages[field.pdf.page];
+    const page = pages[field.pageNumber];
     if (!page) continue;
 
+    // Tick marks for select fields
+    if (field.tickPositions && field.tickPositions[value]) {
+      const pos = field.tickPositions[value];
+      page.drawText("✓", {
+        x: pos.x,
+        y: pos.y,
+        size: 12,
+        font: fontBold,
+        color,
+      });
+      continue;
+    }
+
+    // Date fields — split into DD/MM/YYYY boxes
+    if (field.fieldType === "date" && field.dateBoxes) {
+      const parts = parseDateParts(value);
+      if (parts) {
+        const boxes = field.dateBoxes;
+        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
+        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
+        continue;
+      }
+    }
+
+    // Regular text
     page.drawText(value, {
-      x: field.pdf.x,
-      y: field.pdf.y,
+      x: field.x,
+      y: field.y,
       size: fontSize,
       font,
       color,
-      maxWidth: field.pdf.maxWidth,
+      maxWidth: field.maxWidth,
     });
   }
 
