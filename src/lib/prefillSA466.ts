@@ -53,6 +53,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
   const fontSize = 10;
   const color = rgb(0, 0, 0);
   const pages = pdfDoc.getPages();
+  const Y_OFFSET = -20; // Adjust coordinates down to align with form boxes
 
   for (const field of SA466_FIELDS) {
     const value = data[field.id];
