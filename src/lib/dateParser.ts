@@ -31,20 +31,20 @@ function fmt(d: Date): string {
 export function parseNaturalDate(input: string): { parsed: string; label: string } | null {
   const s = input.trim().toLowerCase();
 
-  // "today"
-  if (s === "today") {
+  // "today" in any language
+  if (TODAY_WORDS.includes(s)) {
     return { parsed: fmt(new Date()), label: "today's date" };
   }
 
-  // "yesterday"
-  if (s === "yesterday") {
+  // "yesterday" in any language
+  if (YESTERDAY_WORDS.includes(s)) {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return { parsed: fmt(d), label: "yesterday's date" };
   }
 
-  // "tomorrow"
-  if (s === "tomorrow") {
+  // "tomorrow" in any language
+  if (TOMORROW_WORDS.includes(s)) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return { parsed: fmt(d), label: "tomorrow's date" };
