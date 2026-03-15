@@ -257,9 +257,17 @@ const EligibilityChat = ({ service }: EligibilityChatProps) => {
           </>
         ) : (
           <div className="space-y-2">
+            {service.slug === "disability-support" && (
+              <button
+                onClick={(e) => { e.preventDefault(); navigate(`/fill-form/${service.slug}`); }}
+                className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90"
+              >
+                ✨ {t("eligibility.fillWithLuma") || "Let Luma fill your form"}
+              </button>
+            )}
             <button
               onClick={(e) => { e.preventDefault(); navigate(`/prepare-form?service=${service.slug}`); }}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90"
+              className={`w-full rounded-xl ${service.slug === "disability-support" ? "border-2 border-primary bg-card text-primary" : "bg-primary text-primary-foreground"} py-3 text-sm font-bold transition-all hover:bg-primary/10`}
             >
               📄 {t("eligibility.downloadChecklist")}
             </button>
