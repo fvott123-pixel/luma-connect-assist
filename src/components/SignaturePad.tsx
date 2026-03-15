@@ -8,8 +8,8 @@ interface SignaturePadProps {
 type Mode = "draw" | "type" | "upload";
 
 const SIGNATURE_FONTS = [
-  { name: "Elegant", css: "italic 32px 'Brush Script MT', 'Segoe Script', cursive" },
-  { name: "Classic", css: "italic 30px 'Georgia', 'Times New Roman', serif" },
+  { name: "Elegant", css: "'Brush Script MT', 'Segoe Script', cursive" },
+  { name: "Classic", css: "'Georgia', 'Times New Roman', serif" },
 ];
 
 const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps) => {
@@ -21,32 +21,38 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
   const [selectedFontIndex, setSelectedFontIndex] = useState<number | null>(null);
   const [signatureUrl, setSignatureUrl] = useState<string | null>(initialSignature || null);
 
-  // Initialize canvas
+  // Sync external initial signature
   useEffect(() => {
+    if (initialSignature && !signatureUrl) {
+      setSignatureUrl(initialSignature);
+    }
+  }, [initialSignature]);
+
+  // Initialize canvas for draw mode only
+  useEffect(() => {
+    if (mode !== "draw") return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    canvas.width = canvas.offsetWidth * 2;
-    canvas.height = canvas.offsetHeight * 2;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = 120 * 2;
     ctx.scale(2, 2);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 2;
     ctx.strokeStyle = "#1a1a2e";
-    clearCanvas();
-  }, [mode]);
 
-  const clearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    setHasDrawn(false);
-    setSignatureUrl(null);
-    onSignatureChange(null);
-  }, [onSignatureChange]);
+    // If we already have a drawn signature, restore it
+    if (signatureUrl && hasDrawn) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, 120);
+      };
+      img.src = signatureUrl;
+    }
+  }, [mode]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current!;
@@ -82,28 +88,9 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
   const endDraw = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
-    saveSignature();
-  };
-
-  const saveSignature = () => {
+    // Save from canvas
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const url = canvas.toDataURL("image/png");
-    setSignatureUrl(url);
-    onSignatureChange(url);
-  };
-
-  const renderTypedSignature = (name: string, fontIndex: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = SIGNATURE_FONTS[fontIndex].css;
-    ctx.fillStyle = "#1a1a2e";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(name, canvas.offsetWidth / 2, canvas.offsetHeight / 2);
     const url = canvas.toDataURL("image/png");
     setSignatureUrl(url);
     onSignatureChange(url);
@@ -112,7 +99,21 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
   const handleSelectFont = (fontIndex: number) => {
     if (!typedName.trim()) return;
     setSelectedFontIndex(fontIndex);
-    renderTypedSignature(typedName, fontIndex);
+    // Render typed name to an offscreen canvas to get a data URL
+    const offscreen = document.createElement("canvas");
+    offscreen.width = 600;
+    offscreen.height = 160;
+    const ctx = offscreen.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, 600, 160);
+    ctx.font = `italic 48px ${SIGNATURE_FONTS[fontIndex].css}`;
+    ctx.fillStyle = "#1a1a2e";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(typedName, 300, 80);
+    const url = offscreen.toDataURL("image/png");
+    setSignatureUrl(url);
+    onSignatureChange(url);
   };
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,29 +124,32 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
       const url = reader.result as string;
       setSignatureUrl(url);
       onSignatureChange(url);
-      const img = new Image();
-      img.onload = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const scale = Math.min(canvas.offsetWidth / img.width, canvas.offsetHeight / img.height) * 0.8;
-        const w = img.width * scale;
-        const h = img.height * scale;
-        ctx.drawImage(img, (canvas.offsetWidth - w) / 2, (canvas.offsetHeight - h) / 2, w, h);
-      };
-      img.src = url;
     };
     reader.readAsDataURL(file);
   };
 
   const handleClear = () => {
-    clearCanvas();
+    // Clear draw canvas if in draw mode
+    if (mode === "draw") {
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setHasDrawn(false);
     setTypedName("");
     setSelectedFontIndex(null);
     setSignatureUrl(null);
     onSignatureChange(null);
+  };
+
+  const switchMode = (m: Mode) => {
+    // Don't clear signature when switching modes - only clear explicitly
+    setMode(m);
+    setHasDrawn(false);
+    setTypedName("");
+    setSelectedFontIndex(null);
   };
 
   return (
@@ -157,19 +161,19 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
         {(["draw", "type", "upload"] as Mode[]).map(m => (
           <button
             key={m}
-            onClick={() => { setMode(m); handleClear(); }}
+            onClick={() => switchMode(m)}
             className={`rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
               mode === m
                 ? "bg-primary text-primary-foreground"
                 : "border border-border bg-background text-foreground hover:bg-muted"
             }`}
           >
-            {m === "draw" ? "✏️ Draw" : m === "type" ? "⌨️ Type your name" : "📷 Upload image"}
+            {m === "draw" ? "✏️ Draw" : m === "type" ? "⌨️ Type" : "📷 Upload"}
           </button>
         ))}
       </div>
 
-      {/* Draw mode canvas */}
+      {/* Draw mode */}
       {mode === "draw" && (
         <div className="relative rounded-lg border-2 border-foreground/20 bg-white overflow-hidden" style={{ touchAction: "none" }}>
           <canvas
@@ -192,12 +196,12 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
         </div>
       )}
 
-      {/* Type mode: two font previews side by side */}
+      {/* Type mode */}
       {mode === "type" && (
         <div>
           <input
             value={typedName}
-            onChange={e => { setTypedName(e.target.value); setSelectedFontIndex(null); setSignatureUrl(null); onSignatureChange(null); }}
+            onChange={e => { setTypedName(e.target.value); setSelectedFontIndex(null); }}
             placeholder="Type your full name"
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
@@ -207,15 +211,15 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
                 <button
                   key={idx}
                   onClick={() => handleSelectFont(idx)}
-                  className={`relative rounded-xl border-2 bg-white px-4 py-5 text-center transition-all hover:shadow-md ${
+                  className={`relative rounded-xl px-4 py-5 text-center transition-all hover:shadow-md ${
                     selectedFontIndex === idx
-                      ? "border-primary shadow-md ring-2 ring-primary/20"
-                      : "border-border hover:border-primary/40"
+                      ? "border-2 border-green-500 shadow-md ring-2 ring-green-500/20 bg-green-50"
+                      : "border-2 border-border bg-white hover:border-primary/40"
                   }`}
                 >
                   <span
                     className="text-[#1a1a2e] block truncate"
-                    style={{ font: font.css, fontSize: "24px" }}
+                    style={{ fontFamily: font.css, fontStyle: "italic", fontSize: "28px" }}
                   >
                     {typedName}
                   </span>
@@ -223,33 +227,38 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
                     {font.name}
                   </span>
                   {selectedFontIndex === idx && (
-                    <span className="absolute top-1 right-1 text-primary text-xs">✓</span>
+                    <span className="absolute top-1 right-1 text-green-600 text-xs font-bold">✓</span>
                   )}
                 </button>
               ))}
             </div>
           )}
-          {/* Hidden canvas for rendering chosen font */}
-          <canvas ref={canvasRef} className="hidden" style={{ height: 120, width: "100%" }} />
+          {/* Show captured signature preview */}
+          {signatureUrl && selectedFontIndex !== null && (
+            <div className="mt-2 rounded-lg border-2 border-green-500 bg-green-50 p-2 flex items-center justify-center">
+              <img src={signatureUrl} alt="Typed signature" className="h-[50px] object-contain" />
+            </div>
+          )}
         </div>
       )}
 
       {/* Upload mode */}
       {mode === "upload" && (
-        <>
-          <div className="relative rounded-lg border-2 border-foreground/20 bg-white overflow-hidden" style={{ touchAction: "none" }}>
-            <canvas ref={canvasRef} className="w-full" style={{ height: 120 }} />
-            {!signatureUrl && (
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <span className="text-muted-foreground/40 text-sm italic">Upload preview</span>
-              </div>
-            )}
-          </div>
+        <div>
+          {signatureUrl ? (
+            <div className="rounded-lg border-2 border-green-500 bg-green-50 p-3 flex items-center justify-center">
+              <img src={signatureUrl} alt="Uploaded signature" className="max-h-[100px] object-contain" />
+            </div>
+          ) : (
+            <div className="rounded-lg border-2 border-dashed border-foreground/20 bg-white p-6 flex items-center justify-center">
+              <span className="text-muted-foreground/40 text-sm italic">Upload preview</span>
+            </div>
+          )}
           <label className="mt-2 flex cursor-pointer items-center justify-center rounded-lg border border-dashed border-primary/30 bg-primary/5 px-4 py-2 text-[11px] font-bold text-primary hover:bg-primary/10 transition-all">
             📁 Choose signature image
             <input type="file" accept="image/*" onChange={handleUpload} className="hidden" />
           </label>
-        </>
+        </div>
       )}
 
       {/* Clear button */}
