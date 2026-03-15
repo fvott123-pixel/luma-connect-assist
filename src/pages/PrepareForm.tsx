@@ -22,13 +22,13 @@ const nameKeys: Record<string, string> = {
   "age-pension": "service.agePension",
 };
 
-const officialFormLinks: Record<string, { type: "url" | "phone"; value: string }> = {
-  "disability-support": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa466en.pdf" },
-  "age-pension": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sa002en.pdf" },
-  "carer-payment": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/sc001en.pdf" },
-  "medicare": { type: "url", value: "https://www.servicesaustralia.gov.au/sites/default/files/ms004en.pdf" },
-  "ndis-access": { type: "url", value: "https://www.ndis.gov.au/applying-access-ndis/how-apply" },
-  "aged-care": { type: "phone", value: "1800 200 422" },
+const officialFormPaths: Record<string, { type: "url" | "phone"; path: string }> = {
+  "disability-support": { type: "url", path: "/forms/DSP/sa466en.pdf" },
+  "age-pension": { type: "url", path: "/forms/AgePension/sa002en.pdf" },
+  "carer-payment": { type: "url", path: "/forms/CarerPayment/sa489en.pdf" },
+  "medicare": { type: "url", path: "/forms/Medicare/ms004en.pdf" },
+  "ndis-access": { type: "url", path: "https://www.ndis.gov.au/applying-access-ndis/how-apply" },
+  "aged-care": { type: "phone", path: "1800 200 422" },
 };
 
 const docsToAttach: Record<string, string[]> = {
