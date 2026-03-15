@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { prefillMS004, downloadPdfBlob } from "@/lib/prefillMS004";
 import type { MS004FormData } from "@/lib/prefillMS004";
 
+const EXTRACT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-id`;
+
 const nameKeys: Record<string, string> = {
   "disability-support": "service.dsp",
   "medicare": "service.medicare",
@@ -72,10 +74,62 @@ const PrepareForm = () => {
   const [email, setEmail] = useState("");
 
   const [prefilling, setPrefilling] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [idUploaded, setIdUploaded] = useState(false);
 
   const isMedicare = selectedService === "medicare";
   const service = getServiceBySlug(selectedService);
   const serviceName = service ? t(nameKeys[selectedService] || service.name) : "";
+
+  const handleIdUploadAndExtract = async (file: File) => {
+    setIdFile(file);
+    setExtracting(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const resp = await fetch(EXTRACT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Extraction failed" }));
+        throw new Error(err.error || "Extraction failed");
+      }
+
+      const data = await resp.json();
+
+      if (data.firstName) setFirstName(data.firstName);
+      if (data.surname) setSurname(data.surname);
+      if (data.fullName && !isMedicare) setName(data.fullName);
+      if (data.dateOfBirth) setDob(data.dateOfBirth);
+      if (data.address) setAddress(data.address);
+      if (data.suburb) setSuburb(data.suburb);
+      if (data.state) setState(data.state);
+      if (data.postcode) setPostcode(data.postcode);
+      if (data.gender) setGender(data.gender);
+
+      setIdUploaded(true);
+      toast.success("✨ Details extracted from your ID!");
+    } catch (err) {
+      console.error("ID extraction error:", err);
+      toast.error("Could not read your ID. Please fill in details manually.");
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const handleSelectService = (slug: string) => {
     setSelectedService(slug);
@@ -231,10 +285,37 @@ const PrepareForm = () => {
               <div className="rounded-2xl border border-border bg-secondary px-4 py-3 text-sm text-foreground">
                 {isMedicare
                   ? t("prepare.medicareIntro")
-                  : <>{t("prepare.desc")} — <strong>{serviceName}</strong></>
+                  : <>Let me help you prepare your <strong>{serviceName}</strong> application.</>
                 }
               </div>
             </div>
+
+            {/* ID Document Upload for AI extraction */}
+            <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-5 text-center space-y-3">
+              <div className="text-2xl">📸</div>
+              <p className="text-sm font-bold text-foreground">Upload your licence or passport to auto-fill your details</p>
+              <p className="text-xs text-muted-foreground">Take a photo or upload an image — Luma will read it and fill in your form automatically</p>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleIdUploadAndExtract(file);
+                }}
+                className="mx-auto block w-full max-w-xs rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-1 file:text-xs file:font-bold file:text-primary-foreground"
+                disabled={extracting}
+              />
+              {extracting && (
+                <div className="flex items-center justify-center gap-2 text-sm text-primary">
+                  <span className="animate-spin">⏳</span> Reading your ID…
+                </div>
+              )}
+              {idUploaded && !extracting && (
+                <p className="text-sm font-bold text-primary">✓ Details extracted — check the fields below</p>
+              )}
+            </div>
+
             <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
               {isMedicare ? (
                 /* ── Medicare-specific fields ── */
