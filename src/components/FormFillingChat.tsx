@@ -152,10 +152,50 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     setSessionCode(code);
   }, [answers, fieldIndex, serviceSlug, lang]);
 
-  // Scroll on new messages
+  // Scroll on new messages — ensure buttons are visible
   useEffect(() => {
-    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) {
+      setTimeout(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }, 50);
+    }
   }, [messages]);
+
+  // Handle fix field from review modal
+  useEffect(() => {
+    if (!fixFieldId || !onFixFieldHandled) return;
+    const fieldIdx = activeFields.findIndex(f => f.id === fixFieldId);
+    const field = activeFields[fieldIdx];
+    if (!field) { onFixFieldHandled(); return; }
+
+    const langName = LANG_NAMES[lang] || "English";
+    const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}.` : "";
+
+    setCorrectionMode({ fieldId: field.id, fieldIndex: fieldIdx, label: field.label });
+    setIsComplete(false);
+    setIsLoading(true);
+
+    let text = "";
+    const buttons = getButtonsForField(field);
+    const prompt = `${langInstruction} The user needs to fix their answer for "${field.label}". Ask them in ${langName}: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explain: "${field.lumaExplanation}"` : ""} Keep it to 1-2 sentences.`;
+
+    streamResponse({
+      messages: [{ role: "user", content: prompt }],
+      onDelta: (chunk) => {
+        text += chunk;
+        setMessages(prev => [...prev.slice(0, -1).concat({ role: "assistant" as const, content: text, buttons })]);
+      },
+      onDone: () => {
+        setMessages(prev => [...prev, { role: "assistant", content: text, buttons }]);
+        setIsLoading(false);
+      },
+      onError: () => {
+        setMessages(prev => [...prev, { role: "assistant", content: field.lumaQuestion, buttons }]);
+        setIsLoading(false);
+      },
+    });
+    onFixFieldHandled();
+  }, [fixFieldId]);
 
   // Auto-speak
   useEffect(() => {
