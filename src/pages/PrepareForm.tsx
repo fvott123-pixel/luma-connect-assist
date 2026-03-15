@@ -73,6 +73,7 @@ const PrepareForm = () => {
   const [postcode, setPostcode] = useState("");
   const [email, setEmail] = useState("");
 
+  const [prefilling, setPrefilling] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [idUploaded, setIdUploaded] = useState(false);
 
