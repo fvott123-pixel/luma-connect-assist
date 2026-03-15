@@ -142,11 +142,6 @@ const FillForm = () => {
   };
 
   const handleDownloadClick = () => {
-    const issues = getSuspiciousFields(answers);
-    if (issues.length > 0) {
-      setShowReview(true);
-      return;
-    }
     doDownload();
   };
 
