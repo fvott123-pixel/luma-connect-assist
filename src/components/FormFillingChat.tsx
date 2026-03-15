@@ -93,20 +93,28 @@ function shouldSkipField(field: SA466Field, answers: Record<string, string>): bo
 }
 
 /**
- * Get the ordered list of question numbers to ask, applying skip logic.
+ * Get the ordered list of question fields, applying skip logic.
+ * No longer filters out answered fields — we use findFirstUnanswered to skip them.
  */
 function getActiveFields(answers: Record<string, string>, prefilled?: Record<string, string>): SA466Field[] {
+  const merged = { ...prefilled, ...answers };
   return SA466_FIELDS.filter(f => {
-    // Skip the final confirmation pseudo-field
     if (f.id === "declarationComplete") return false;
-    // Skip signature — it's a notice, not a real input
     if (f.id === "declarationSignature") return false;
-    // Skip already prefilled
-    if (prefilled?.[f.id]) return false;
-    // Apply skip logic
-    if (shouldSkipField(f, { ...prefilled, ...answers })) return false;
+    if (shouldSkipField(f, merged)) return false;
     return true;
   });
+}
+
+/**
+ * Find the index of the first unanswered field in the active fields list.
+ */
+function findFirstUnanswered(fields: SA466Field[], answers: Record<string, string>): number {
+  for (let i = 0; i < fields.length; i++) {
+    const v = answers[fields[i].id];
+    if (!v || v.trim() === "") return i;
+  }
+  return fields.length;
 }
 
 function getCurrentSection(questionNumber: number): string {
@@ -212,17 +220,20 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     initRef.current = true;
 
     const mergedAnswers = { ...(prefilled || {}), ...(resumedAnswers || {}) };
-    const isResuming = resumedFieldIndex !== undefined && resumedFieldIndex > 0;
 
     const fields = getActiveFields(mergedAnswers, prefilled);
-    if (fields.length === 0) {
-      setMessages([{ role: "assistant", content: "All your details have been filled from your ID! 🎉 Your form is ready to download." }]);
+    // Always start from the first unanswered field — never re-ask answered questions
+    const startIdx = findFirstUnanswered(fields, mergedAnswers);
+    const isResuming = startIdx > 0;
+
+    if (startIdx >= fields.length) {
+      setMessages([{ role: "assistant", content: "All your details have been filled! 🎉 Your form is ready to download." }]);
       setIsComplete(true);
       onComplete?.();
       return;
     }
 
-    const startIdx = isResuming ? Math.min(resumedFieldIndex!, fields.length - 1) : 0;
+    setFieldIndex(startIdx);
     const field = fields[startIdx];
     const langName = LANG_NAMES[lang] || "English";
     const sectionTitle = getCurrentSection(field.questionNumber);
@@ -481,9 +492,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     setIsLoading(true);
     setInput("");
 
-    // Recalculate active fields with new answers
+    // Find the next unanswered field, skipping any already answered
     const updatedActive = getActiveFields(newAnswers, prefilled);
-    const nextIdx = fieldIndex + 1;
+    let nextIdx = fieldIndex + 1;
+    while (nextIdx < updatedActive.length) {
+      const v = newAnswers[updatedActive[nextIdx].id];
+      if (!v || v.trim() === "") break;
+      nextIdx++;
+    }
 
     if (nextIdx >= updatedActive.length) {
       // Show signature notice then complete
