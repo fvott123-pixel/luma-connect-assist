@@ -3,6 +3,7 @@ import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
+import { saveSession } from "@/lib/formSession";
 
 type Msg = {
   role: "user" | "assistant";
@@ -69,6 +70,9 @@ interface FormFillingChatProps {
   onAnswersChange?: (answers: Record<string, string>) => void;
   onComplete?: () => void;
   onFieldAnswered?: (fieldId: string) => void;
+  resumedAnswers?: Record<string, string>;
+  resumedFieldIndex?: number;
+  onSaveAndExit?: () => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
@@ -106,10 +110,10 @@ function getCurrentSection(questionNumber: number): string {
   return sec?.title || "";
 }
 
-const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered }: FormFillingChatProps) => {
+const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered, resumedAnswers, resumedFieldIndex, onSaveAndExit }: FormFillingChatProps) => {
   const { lang, dir } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>(prefilled || {});
+  const [answers, setAnswers] = useState<Record<string, string>>({ ...(prefilled || {}), ...(resumedAnswers || {}) });
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -119,7 +123,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoice);
   const [input, setInput] = useState("");
   const initRef = useRef(false);
-  const [fieldIndex, setFieldIndex] = useState(0);
+  const [fieldIndex, setFieldIndex] = useState(resumedFieldIndex || 0);
+  const [sessionCode, setSessionCode] = useState<string>("");
 
   // Active fields — recalculated whenever answers change
   const activeFields = getActiveFields(answers, prefilled);
@@ -135,6 +140,13 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   useEffect(() => {
     onAnswersChange?.(answers);
   }, [answers, onAnswersChange]);
+
+  // Auto-save to localStorage on every answer change
+  useEffect(() => {
+    if (Object.keys(answers).length === 0) return;
+    const code = saveSession(serviceSlug, lang, answers, fieldIndex);
+    setSessionCode(code);
+  }, [answers, fieldIndex, serviceSlug, lang]);
 
   // Scroll on new messages
   useEffect(() => {
@@ -155,7 +167,10 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (initRef.current) return;
     initRef.current = true;
 
-    const fields = getActiveFields({}, prefilled);
+    const mergedAnswers = { ...(prefilled || {}), ...(resumedAnswers || {}) };
+    const isResuming = resumedFieldIndex !== undefined && resumedFieldIndex > 0;
+
+    const fields = getActiveFields(mergedAnswers, prefilled);
     if (fields.length === 0) {
       setMessages([{ role: "assistant", content: "All your details have been filled from your ID! 🎉 Your form is ready to download." }]);
       setIsComplete(true);
@@ -163,12 +178,19 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
-    const field = fields[0];
-    const prefilledCount = Object.keys(prefilled || {}).length;
+    const startIdx = isResuming ? Math.min(resumedFieldIndex!, fields.length - 1) : 0;
+    const field = fields[startIdx];
     const langName = LANG_NAMES[lang] || "English";
     const sectionTitle = getCurrentSection(field.questionNumber);
 
-    const prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll guide them through the form one question at a time in simple language,"} then ask the first question. Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explanation to include: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} ${field.signatureNotice ? `IMPORTANT NOTICE: "${field.signatureNotice}"` : ""} Keep it to 2-3 short sentences.`;
+    let prompt: string;
+    if (isResuming) {
+      const answered = Object.keys(mergedAnswers).filter(k => mergedAnswers[k] && mergedAnswers[k].toLowerCase() !== "none").length;
+      prompt = `The user is RESUMING their DSP (SA466) form. They previously answered ${answered} questions. Welcome them back warmly in ${langName}. Say you've restored their progress and are continuing from where they left off. Then ask: Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `First explain: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
+    } else {
+      const prefilledCount = Object.keys(prefilled || {}).length;
+      prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll guide them through the form one question at a time in simple language,"} then ask the first question. Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explanation to include: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} ${field.signatureNotice ? `IMPORTANT NOTICE: "${field.signatureNotice}"` : ""} Keep it to 2-3 short sentences.`;
+    }
 
     setIsLoading(true);
     let text = "";
@@ -185,9 +207,9 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         setIsLoading(false);
       },
       onError: () => {
-        const fallback = field.lumaExplanation
-          ? `${field.lumaExplanation}\n\n${field.lumaQuestion}`
-          : field.lumaQuestion;
+        const fallback = isResuming
+          ? `Welcome back! 🎉 I've restored your progress. Let's continue.\n\n${field.lumaQuestion}`
+          : (field.lumaExplanation ? `${field.lumaExplanation}\n\n${field.lumaQuestion}` : field.lumaQuestion);
         setMessages([{ role: "assistant", content: fallback, buttons }]);
         setIsLoading(false);
       },
@@ -472,8 +494,27 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               Send
             </button>
           </div>
-          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-            🔒 Private · Not stored · Not connected to immigration
+          <div className="mt-1.5 flex items-center justify-between">
+            <button
+              onClick={() => {
+                const code = saveSession(serviceSlug, lang, answers, fieldIndex);
+                setSessionCode(code);
+                const qNum = currentField?.questionNumber || fieldIndex + 1;
+                setMessages(prev => [...prev, { role: "assistant", content: `💾 Your progress is saved! You can return any time and continue from question ${qNum}.\n\nYour session code: **${code}** — write it down in case you need it later.` }]);
+                onSaveAndExit?.();
+              }}
+              className="text-[10px] font-semibold text-primary hover:underline"
+            >
+              💾 Save & continue later
+            </button>
+            {sessionCode && (
+              <span className="text-[10px] text-muted-foreground">
+                Session: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-center text-[10px] text-muted-foreground">
+            🔒 Saved on your device only · Not sent anywhere
           </p>
         </div>
       )}
