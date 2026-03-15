@@ -8,7 +8,7 @@ interface SA466FormPreviewProps {
   signatureDataUrl?: string | null;
 }
 
-const SA466FormPreview = ({ answers, scrollToField }: SA466FormPreviewProps) => {
+const SA466FormPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUrl }: SA466FormPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
