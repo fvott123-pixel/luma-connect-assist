@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { getServiceBySlug } from "@/data/services";
 import TopBar from "@/components/landing/TopBar";
 import StickyNav from "@/components/landing/StickyNav";
