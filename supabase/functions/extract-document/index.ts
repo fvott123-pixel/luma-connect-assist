@@ -6,6 +6,117 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const prompts: Record<string, { system: string; fields: Record<string, any> }> = {
+  licenceFront: {
+    system: `Extract personal details from the FRONT of this Australian driver's licence. Read all visible fields carefully.`,
+    fields: {
+      firstName: { type: "string", description: "First/given name" },
+      surname: { type: "string", description: "Family/last name" },
+      dateOfBirth: { type: "string", description: "DD/MM/YYYY format" },
+      address: { type: "string", description: "Full street address" },
+      suburb: { type: "string" },
+      state: { type: "string", description: "State abbreviation" },
+      postcode: { type: "string" },
+      licenceNumber: { type: "string", description: "Driver's licence number" },
+      expiryDate: { type: "string", description: "Licence expiry DD/MM/YYYY" },
+      gender: { type: "string", enum: ["Male", "Female", "Other", ""] },
+    },
+  },
+  licenceBack: {
+    system: `Extract details from the BACK of this Australian driver's licence. Read any address, licence number, or class information visible.`,
+    fields: {
+      address: { type: "string", description: "Address if visible" },
+      licenceNumber: { type: "string", description: "Licence number if visible" },
+      licenceClass: { type: "string", description: "Licence class/type" },
+      conditions: { type: "string", description: "Any conditions listed" },
+    },
+  },
+  passport: {
+    system: `Extract personal details from the photo page of this passport. Read the MRZ (machine readable zone) at the bottom if visible for accuracy.`,
+    fields: {
+      firstName: { type: "string", description: "First/given name(s)" },
+      surname: { type: "string", description: "Family/last name" },
+      dateOfBirth: { type: "string", description: "DD/MM/YYYY format" },
+      passportNumber: { type: "string", description: "Passport document number" },
+      nationality: { type: "string", description: "Nationality / country of citizenship" },
+      expiryDate: { type: "string", description: "Passport expiry DD/MM/YYYY" },
+      gender: { type: "string", enum: ["Male", "Female", "Other", ""] },
+    },
+  },
+  photoId: {
+    system: `Extract personal details from this ID document (driver's licence, passport, or government photo ID). Return all visible fields.`,
+    fields: {
+      firstName: { type: "string", description: "First/given name" },
+      surname: { type: "string", description: "Family/last name" },
+      dateOfBirth: { type: "string", description: "DD/MM/YYYY format" },
+      address: { type: "string", description: "Full street address" },
+      suburb: { type: "string" },
+      state: { type: "string", description: "State abbreviation" },
+      postcode: { type: "string" },
+      gender: { type: "string", enum: ["Male", "Female", "Other", ""] },
+    },
+  },
+  medicareCard: {
+    system: `Extract details from this Medicare card. Read the card number, expiry, and all names listed.`,
+    fields: {
+      medicareNumber: { type: "string", description: "Full Medicare card number including the individual reference number (IRN)" },
+      medicareExpiry: { type: "string", description: "Expiry date MM/YYYY" },
+      namesOnCard: { type: "string", description: "All names listed on the card, comma-separated" },
+    },
+  },
+  centrelinkCard: {
+    system: `Extract details from this Centrelink concession card (Health Care Card, Pensioner Concession Card, etc). Read the CRN and name.`,
+    fields: {
+      crn: { type: "string", description: "Customer Reference Number (9 or 10 digit number)" },
+      cardholderName: { type: "string", description: "Name on the card" },
+      cardType: { type: "string", description: "Type of card e.g. Health Care Card, Pensioner Concession Card" },
+      cardExpiry: { type: "string", description: "Expiry date if visible" },
+    },
+  },
+  bankStatement: {
+    system: `Extract bank account details from this bank statement or bank document. Look for BSB number, account number, account name, and bank name.`,
+    fields: {
+      bankName: { type: "string" },
+      bsbNumber: { type: "string", description: "6-digit BSB" },
+      accountNumber: { type: "string" },
+      accountName: { type: "string", description: "Name on the account" },
+    },
+  },
+  taxReturn: {
+    system: `Extract details from this tax return, Centrelink letter, or government correspondence. Look for Tax File Number, Customer Reference Number, and any personal details.`,
+    fields: {
+      taxFileNumber: { type: "string", description: "9-digit TFN" },
+      crn: { type: "string", description: "Centrelink CRN if visible" },
+      fullName: { type: "string" },
+      address: { type: "string" },
+    },
+  },
+  medicalReport: {
+    system: `Extract medical details from this medical report, specialist letter, or medical certificate. Look for diagnosis, treating doctor details, and dates.`,
+    fields: {
+      primaryCondition: { type: "string", description: "Main diagnosis or condition described" },
+      otherConditions: { type: "string", description: "Any other conditions mentioned" },
+      treatingDoctor: { type: "string", description: "Doctor's name" },
+      doctorAddress: { type: "string", description: "Doctor's practice address" },
+      doctorPhone: { type: "string", description: "Doctor's phone number" },
+      conditionStartDate: { type: "string", description: "When condition started, DD/MM/YYYY if possible" },
+      treatmentDetails: { type: "string", description: "Brief description of treatments or medications mentioned" },
+    },
+  },
+  leaseAgreement: {
+    system: `Extract details from this lease, rental agreement, or tenancy document. Look for address, rent amount, landlord/agent details.`,
+    fields: {
+      rentalAddress: { type: "string", description: "Full rental property address" },
+      rentAmount: { type: "string", description: "Rent amount per week or fortnight" },
+      rentFrequency: { type: "string", description: "weekly, fortnightly, or monthly" },
+      landlordName: { type: "string" },
+      landlordPhone: { type: "string" },
+      leaseStartDate: { type: "string", description: "DD/MM/YYYY" },
+      leaseEndDate: { type: "string", description: "DD/MM/YYYY" },
+    },
+  },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,81 +146,6 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const prompts: Record<string, { system: string; fields: Record<string, any> }> = {
-      photoId: {
-        system: `Extract personal details from this ID document (driver's licence, passport, or government photo ID). Return all visible fields.`,
-        fields: {
-          firstName: { type: "string", description: "First/given name" },
-          surname: { type: "string", description: "Family/last name" },
-          dateOfBirth: { type: "string", description: "DD/MM/YYYY format" },
-          address: { type: "string", description: "Full street address" },
-          suburb: { type: "string" },
-          state: { type: "string", description: "State abbreviation" },
-          postcode: { type: "string" },
-          gender: { type: "string", enum: ["Male", "Female", "Other", ""] },
-        },
-      },
-      medicareCard: {
-        system: `Extract details from this Medicare card. Read the card number, expiry, and all names listed.`,
-        fields: {
-          medicareNumber: { type: "string", description: "Full Medicare card number including the individual reference number (IRN)" },
-          medicareExpiry: { type: "string", description: "Expiry date MM/YYYY" },
-          namesOnCard: { type: "string", description: "All names listed on the card, comma-separated" },
-        },
-      },
-      centrelinkCard: {
-        system: `Extract details from this Centrelink concession card (Health Care Card, Pensioner Concession Card, etc). Read the CRN and name.`,
-        fields: {
-          crn: { type: "string", description: "Customer Reference Number (9 or 10 digit number)" },
-          cardholderName: { type: "string", description: "Name on the card" },
-          cardType: { type: "string", description: "Type of card e.g. Health Care Card, Pensioner Concession Card" },
-          cardExpiry: { type: "string", description: "Expiry date if visible" },
-        },
-      },
-      bankStatement: {
-        system: `Extract bank account details from this bank statement or bank document. Look for BSB number, account number, account name, and bank name.`,
-        fields: {
-          bankName: { type: "string" },
-          bsbNumber: { type: "string", description: "6-digit BSB" },
-          accountNumber: { type: "string" },
-          accountName: { type: "string", description: "Name on the account" },
-        },
-      },
-      taxReturn: {
-        system: `Extract details from this tax return, Centrelink letter, or government correspondence. Look for Tax File Number, Customer Reference Number, and any personal details.`,
-        fields: {
-          taxFileNumber: { type: "string", description: "9-digit TFN" },
-          crn: { type: "string", description: "Centrelink CRN if visible" },
-          fullName: { type: "string" },
-          address: { type: "string" },
-        },
-      },
-      medicalReport: {
-        system: `Extract medical details from this medical report, specialist letter, or medical certificate. Look for diagnosis, treating doctor details, and dates.`,
-        fields: {
-          primaryCondition: { type: "string", description: "Main diagnosis or condition described" },
-          otherConditions: { type: "string", description: "Any other conditions mentioned" },
-          treatingDoctor: { type: "string", description: "Doctor's name" },
-          doctorAddress: { type: "string", description: "Doctor's practice address" },
-          doctorPhone: { type: "string", description: "Doctor's phone number" },
-          conditionStartDate: { type: "string", description: "When condition started, DD/MM/YYYY if possible" },
-          treatmentDetails: { type: "string", description: "Brief description of treatments or medications mentioned" },
-        },
-      },
-      leaseAgreement: {
-        system: `Extract details from this lease, rental agreement, or tenancy document. Look for address, rent amount, landlord/agent details.`,
-        fields: {
-          rentalAddress: { type: "string", description: "Full rental property address" },
-          rentAmount: { type: "string", description: "Rent amount per week or fortnight" },
-          rentFrequency: { type: "string", description: "weekly, fortnightly, or monthly" },
-          landlordName: { type: "string" },
-          landlordPhone: { type: "string" },
-          leaseStartDate: { type: "string", description: "DD/MM/YYYY" },
-          leaseEndDate: { type: "string", description: "DD/MM/YYYY" },
-        },
-      },
-    };
 
     const config = prompts[documentType];
     if (!config) {
