@@ -226,6 +226,8 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
           ctx.fillStyle = "#000000";
         }
       }
+
+      console.log("PDF re-rendered");
     } catch (err) {
       console.error("Canvas render error:", err);
       setCanvasMode(false);

@@ -58,21 +58,14 @@ export const SA466_FIELDS: SA466Field[] = [
   {
     id: "title",
     questionNumber: 1,
-    pageNumber: 1,
-    x: 130, y: 710,
+    pageNumber: 6,
+    x: 147, y: 670,
     fieldType: "select",
     label: "Title",
     section: "personal",
     options: ["Mr", "Mrs", "Ms", "Miss", "Dr"],
     lumaQuestion: "First up — how would you like to be addressed? 😊",
     required: true,
-    tickPositions: {
-      "Mr": { x: 130, y: 710 },
-      "Mrs": { x: 160, y: 710 },
-      "Ms": { x: 190, y: 710 },
-      "Miss": { x: 220, y: 710 },
-      "Dr": { x: 250, y: 710 },
-    },
   },
   {
     id: "familyName",

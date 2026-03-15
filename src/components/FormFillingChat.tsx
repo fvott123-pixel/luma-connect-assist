@@ -235,8 +235,25 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
+    console.log(`Answer received: ${cleanAnswer}`);
+
+    const placement = currentField.tickPositions?.[cleanAnswer]
+      ? {
+          page: currentField.pageNumber + 1,
+          x: currentField.tickPositions[cleanAnswer].x,
+          y: currentField.tickPositions[cleanAnswer].y,
+        }
+      : {
+          page: currentField.pageNumber + 1,
+          x: currentField.x,
+          y: currentField.y,
+        };
+
+    console.log(`Placing on page ${placement.page} at x=${placement.x} y=${placement.y}`);
+
     const newAnswers = { ...answers, [currentField.id]: cleanAnswer };
     setAnswers(newAnswers);
+    onAnswersChange?.(newAnswers);
     onFieldAnswered?.(currentField.id);
     setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
     setIsLoading(true);
