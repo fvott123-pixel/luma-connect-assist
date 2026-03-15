@@ -137,3 +137,24 @@
 .card-hover:hover::after {
   transform: scaleX(1);
 }
+
+/* Print styles for SA466 form */
+@media print {
+  body > *:not(.sa466-print-root) {
+    display: none !important;
+  }
+  .print\\:hidden {
+    display: none !important;
+  }
+  .sa466-page {
+    page-break-after: always;
+    border: none !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}
