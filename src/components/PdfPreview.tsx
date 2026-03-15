@@ -127,25 +127,22 @@ const PdfPreview = ({ answers }: PdfPreviewProps) => {
     );
   }
 
-  // Canvas mode - not yet initialized
-  if (!initialized) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-xl border border-border bg-muted/50 p-8">
-        <div className="text-center">
-          <span className="text-4xl">📄</span>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Your form preview will appear here as Luma fills in each field
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
       className="h-full w-full overflow-auto rounded-xl border border-border bg-white p-2"
-    />
+    >
+      {!initialized && (
+        <div className="flex h-full items-center justify-center p-8">
+          <div className="text-center">
+            <span className="text-4xl">📄</span>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your form preview will appear here as Luma fills in each field
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
