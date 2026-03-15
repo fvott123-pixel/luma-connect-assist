@@ -307,41 +307,37 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
-    // ── Declaration date: auto-fill today if user says "yes" ──
-    if (currentField.id === "declarationDate") {
-      const yesPattern = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine)$/i;
-      if (yesPattern.test(cleanAnswer)) {
-        const now = new Date();
-        const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
-        setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: `📅 I've entered **${todayStr}** as today's date for the declaration.`,
-        }]);
-        applyAnswer(todayStr);
-        return;
-      }
+    // ── "Yes/today" patterns in any language for declaration date ──
+    const YES_TODAY_PATTERN = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine|sì|si|certo|oggi|va bene|نعم|اليوم|हो|आज|có|hôm nay|vâng)$/i;
+    
+    if (currentField.id === "declarationDate" && YES_TODAY_PATTERN.test(cleanAnswer)) {
+      const now = new Date();
+      const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+      setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `📅 ${todayStr}`,
+      }]);
+      applyAnswer(todayStr);
+      return;
     }
 
-    // ── Date field: parse natural language dates ──
+    // ── Date field: parse natural language dates (works for all languages via dateParser) ──
     if (currentField.fieldType === "date") {
       const dateResult = parseNaturalDate(cleanAnswer);
       if (dateResult) {
-        // Show confirmation message with converted date
         const finalDate = dateResult.parsed;
         setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+        // Auto-apply date without confirmation for smoother UX
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: `📅 I've entered **${finalDate}** as ${dateResult.label} — is that correct?`,
-          buttons: [
-            { label: "✅ Yes, correct", value: `__CONFIRM_DATE__${finalDate}` },
-            { label: "✏️ No, let me type it", value: "__REJECT_DATE__" },
-          ],
+          content: `📅 ${finalDate}`,
         }]);
+        applyAnswer(finalDate);
         return;
       }
 
-      // Handle date confirmation
+      // Handle date confirmation (legacy buttons)
       if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
         const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
         applyAnswer(confirmed);
@@ -357,6 +353,18 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     }
 
     console.log(`Answer received: ${cleanAnswer}`);
+
+    // ── Translate non-English answers to English before saving ──
+    if (lang !== "EN" && currentField.fieldType !== "date" && currentField.fieldType !== "select") {
+      setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+      setIsLoading(true);
+      translateToEnglish(cleanAnswer, lang).then(translated => {
+        console.log(`Translated: "${cleanAnswer}" → "${translated}"`);
+        applyAnswer(translated);
+      });
+      return;
+    }
+
     applyAnswer(cleanAnswer);
   };
 
