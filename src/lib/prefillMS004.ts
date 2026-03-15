@@ -21,17 +21,17 @@ export interface MS004FormData {
 // Adjust these values if the form layout changes.
 
 const FIELD_MAP: Record<keyof MS004FormData, { page: number; x: number; y: number; maxWidth?: number }> = {
-  title:     { page: 2, x: 120, y: 672 },
-  surname:   { page: 2, x: 120, y: 644 },
-  firstName: { page: 2, x: 120, y: 616 },
-  dob:       { page: 2, x: 120, y: 588 },
-  gender:    { page: 2, x: 120, y: 560 },
-  address:   { page: 2, x: 120, y: 532, maxWidth: 400 },
-  suburb:    { page: 2, x: 120, y: 504 },
-  state:     { page: 2, x: 370, y: 504 },
-  postcode:  { page: 2, x: 450, y: 504 },
-  phone:     { page: 2, x: 120, y: 476 },
-  email:     { page: 2, x: 120, y: 448, maxWidth: 400 },
+  title:     { page: 2, x: 130, y: 710 },
+  firstName: { page: 2, x: 130, y: 690 },
+  surname:   { page: 2, x: 350, y: 690 },
+  dob:       { page: 2, x: 130, y: 665 },
+  gender:    { page: 2, x: 350, y: 665 },
+  address:   { page: 2, x: 130, y: 635, maxWidth: 200 },
+  suburb:    { page: 2, x: 130, y: 615 },
+  state:     { page: 2, x: 370, y: 615 },
+  postcode:  { page: 2, x: 430, y: 615 },
+  phone:     { page: 2, x: 130, y: 590 },
+  email:     { page: 2, x: 130, y: 570, maxWidth: 250 },
 };
 
 export async function prefillMS004(data: MS004FormData): Promise<Uint8Array> {
