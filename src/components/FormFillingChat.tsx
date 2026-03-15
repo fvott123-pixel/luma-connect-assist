@@ -75,6 +75,8 @@ interface FormFillingChatProps {
   resumedAnswers?: Record<string, string>;
   resumedFieldIndex?: number;
   onSaveAndExit?: () => void;
+  fixFieldId?: string | null;
+  onFixFieldHandled?: () => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
