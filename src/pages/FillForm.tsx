@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import TopBar from "@/components/landing/TopBar";
 import StickyNav from "@/components/landing/StickyNav";
 import Footer from "@/components/landing/Footer";
-import IDUploadScreen from "@/components/IDUploadScreen";
+import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
 import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
@@ -20,7 +20,7 @@ const FillForm = () => {
   const navigate = useNavigate();
   const { dir } = useLanguage();
 
-  const [phase, setPhase] = useState<"resume-check" | "upload" | "filling">("resume-check");
+  const [phase, setPhase] = useState<"resume-check" | "vault" | "filling">("resume-check");
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
@@ -28,12 +28,11 @@ const FillForm = () => {
   const [lastAnsweredField, setLastAnsweredField] = useState<string | null>(null);
   const [resumedSession, setResumedSession] = useState<FormSession | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
+  const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
   }, []);
-
-  const serviceName = serviceNames[slug || ""] || "Form";
 
   if (!slug || !serviceNames[slug]) {
     return (
@@ -50,7 +49,6 @@ const FillForm = () => {
   if (phase === "resume-check") {
     const saved = loadSession(slug);
     if (saved && Object.keys(saved.answers).length > 0) {
-      // Show resume UI
       return (
         <div className="min-h-screen bg-background" dir={dir}>
           <TopBar />
@@ -83,7 +81,7 @@ const FillForm = () => {
                 <button
                   onClick={() => {
                     clearSession(slug);
-                    setPhase("upload");
+                    setPhase("vault");
                   }}
                   className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-muted"
                 >
@@ -125,18 +123,19 @@ const FillForm = () => {
         </div>
       );
     }
-    // No saved session — go to upload
-    setPhase("upload");
+    // No saved session — go to vault
+    setPhase("vault");
     return null;
   }
 
-  const handleExtracted = (data: Record<string, string>) => {
-    setPrefilled(data);
-    setAnswers(data);
+  const handleVaultComplete = (extracted: Record<string, string>, summary: string[]) => {
+    setPrefilled(extracted);
+    setAnswers(extracted);
+    setExtractionSummary(summary);
     setPhase("filling");
   };
 
-  const handleSkip = () => {
+  const handleSkipVault = () => {
     setPhase("filling");
   };
 
@@ -150,7 +149,6 @@ const FillForm = () => {
       const pdfBytes = await prefillSA466(data);
       const today = new Date().toLocaleDateString("en-AU");
       downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
-      // Clear saved session on successful download
       clearSession(slug);
       toast.success("Your completed form has been downloaded! 🎉 Saved session cleared.");
     } catch (err) {
@@ -161,17 +159,17 @@ const FillForm = () => {
     }
   };
 
-  if (phase === "upload") {
+  if (phase === "vault") {
     return (
       <div className="min-h-screen bg-background" dir={dir}>
         <TopBar />
         <StickyNav />
-        <main className="mx-auto max-w-2xl px-4 py-10">
-          <button onClick={() => navigate("/")} className="mb-6 text-sm font-semibold text-primary hover:underline">
+        <main className="mx-auto max-w-2xl px-4 py-6">
+          <button onClick={() => navigate("/")} className="mb-4 text-sm font-semibold text-primary hover:underline">
             ← Back
           </button>
           <div className="rounded-2xl border border-border bg-card shadow-sm">
-            <IDUploadScreen onExtracted={handleExtracted} onSkip={handleSkip} />
+            <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} />
           </div>
         </main>
         <Footer />
@@ -199,6 +197,16 @@ const FillForm = () => {
           )}
         </div>
 
+        {/* Extraction summary banner */}
+        {extractionSummary.length > 0 && (
+          <div className="mb-2 rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 px-4 py-2">
+            <p className="text-[11px] font-bold text-foreground">📋 Pre-filled from your documents:</p>
+            {extractionSummary.map((s, i) => (
+              <p key={i} className="text-[10px] text-foreground/70">✅ {s}</p>
+            ))}
+          </div>
+        )}
+
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="flex flex-col min-h-[400px] lg:min-h-0 overflow-hidden">
             <FormFillingChat
@@ -211,7 +219,6 @@ const FillForm = () => {
               resumedFieldIndex={resumedSession?.fieldIndex}
             />
           </div>
-
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
             <PdfPreview answers={answers} scrollToField={lastAnsweredField} />
           </div>
@@ -220,7 +227,7 @@ const FillForm = () => {
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-bold text-primary">Your data stays private.</span> Progress is saved on your device only. Nothing is sent to the government until you print and post.
+            <span className="font-bold text-primary">Your data stays private.</span> Documents are deleted after reading. Progress saved on your device only.
           </p>
         </div>
       </main>
