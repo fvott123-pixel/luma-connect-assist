@@ -4,7 +4,7 @@ import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
 import { saveSession } from "@/lib/formSession";
-import { parseNaturalDate } from "@/lib/dateParser";
+import { parseNaturalDate, type DateParseResult } from "@/lib/dateParser";
 
 const TRANSLATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-answer`;
 
@@ -186,13 +186,15 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     const langName = LANG_NAMES[lang] || "English";
     const sectionTitle = getCurrentSection(field.questionNumber);
 
+    const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}. Translate all question text, explanations and options into ${langName}.` : "";
+    
     let prompt: string;
     if (isResuming) {
       const answered = Object.keys(mergedAnswers).filter(k => mergedAnswers[k] && mergedAnswers[k].toLowerCase() !== "none").length;
-      prompt = `The user is RESUMING their DSP (SA466) form. They previously answered ${answered} questions. Welcome them back warmly in ${langName}. Say you've restored their progress and are continuing from where they left off. Then ask: Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `First explain: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
+      prompt = `${langInstruction} The user is RESUMING their DSP (SA466) form. They previously answered ${answered} questions. Welcome them back warmly in ${langName}. Say you've restored their progress and are continuing from where they left off. Then ask: Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `First explain: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
     } else {
       const prefilledCount = Object.keys(prefilled || {}).length;
-      prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll guide them through the form one question at a time in simple language,"} then ask the first question. Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explanation to include: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} ${field.signatureNotice ? `IMPORTANT NOTICE: "${field.signatureNotice}"` : ""} Keep it to 2-3 short sentences.`;
+      prompt = `${langInstruction} The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll guide them through the form one question at a time in simple language,"} then ask the first question. Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explanation to include: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} ${field.signatureNotice ? `IMPORTANT NOTICE: "${field.signatureNotice}"` : ""} Keep it to 2-3 short sentences.`;
     }
 
     setIsLoading(true);
@@ -343,19 +345,32 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     // ── Date field: parse natural language dates (works for all languages via dateParser) ──
     if (currentField.fieldType === "date") {
       const dateResult = parseNaturalDate(cleanAnswer);
+      
       if (dateResult) {
+        if (dateResult.type === "needDayMonth") {
+          // User typed just a year like "1999"
+          setMessages(prev => [...prev,
+            { role: "user", content: cleanAnswer },
+            { role: "assistant", content: `I have the year ${dateResult.year}. What day and month? For example: 15/03/${dateResult.year}` },
+          ]);
+          return;
+        }
+
+        // Parsed successfully — show confirmation
         const finalDate = dateResult.parsed;
         setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
-        // Auto-apply date without confirmation for smoother UX
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: `📅 ${finalDate}`,
+          content: `📅 I have entered ${finalDate} — is that correct?`,
+          buttons: [
+            { label: "✅ Yes", value: `__CONFIRM_DATE__${finalDate}` },
+            { label: "✏️ No, let me retype", value: "__REJECT_DATE__" },
+          ],
         }]);
-        applyAnswer(finalDate);
         return;
       }
 
-      // Handle date confirmation (legacy buttons)
+      // Handle date confirmation buttons
       if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
         const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
         applyAnswer(confirmed);
@@ -459,7 +474,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       }
 
       const langName = LANG_NAMES[lang] || "English";
-      const prompt = `The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
+      const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}. Translate the question and explanation into ${langName}.` : "";
+      const prompt = `${langInstruction} The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
 
       const buttons = getButtonsForField(nextField);
       let text = "";
@@ -510,7 +526,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const finishForm = (finalAnswers: Record<string, string>, lastAnswer: string) => {
     setIsLoading(true);
     const langName = LANG_NAMES[lang] || "English";
-    const prompt = `The user has completed ALL questions for their SA466 Disability Support Pension form! Congratulate them warmly in ${langName}. Tell them: 1) Their form is complete and ready to download. 2) They need to print it and sign where indicated. 3) Post it to: Reply Paid 7800, Canberra BC ACT 2610. Keep it to 3 sentences.`;
+    const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}.` : "";
+    const prompt = `${langInstruction} The user has completed ALL questions for their SA466 Disability Support Pension form! Congratulate them warmly in ${langName}. Tell them: 1) Their form is complete and ready to download. 2) They need to print it and sign where indicated. 3) Post it to: Reply Paid 7800, Canberra BC ACT 2610. Keep it to 3 sentences.`;
 
     let text = "";
     streamResponse({
