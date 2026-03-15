@@ -558,14 +558,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         <LumaAvatar size={32} />
         <div className="flex-1 text-left">
           <div className="font-serif text-sm font-bold text-primary-foreground">
-            Luma ✨ <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">Form Assistant</span>
+            Luma ✨ <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">{t("form.formAssistant")}</span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-primary-foreground/70">
             <span className="animate-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--mint))]" />
-            Disability Support Pension
+            {t("form.dspTitle")}
           </div>
         </div>
-        <button onClick={toggleMute} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? "Unmute" : "Mute"}>
+        <button onClick={toggleMute} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? t("form.unmute") : t("form.mute")}>
           {muted ? "🔇" : "🔊"}
         </button>
       </div>
@@ -579,11 +579,11 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       </div>
       <div className="px-4 py-1.5 text-[11px] text-muted-foreground text-center space-y-0.5">
         {isComplete
-          ? <span>✅ All questions answered — your form is ready!</span>
+          ? <span>{t("form.allComplete")}</span>
           : (
             <>
               <div className="font-medium text-foreground/80">{sectionTitle}</div>
-              <div>{answeredCount} of {totalQuestions} questions complete</div>
+              <div>{answeredCount} {t("form.questionsOf")} {totalQuestions} {t("form.questionsComplete")}</div>
             </>
           )
         }
@@ -624,7 +624,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
           <div className="flex gap-2">
             <LumaAvatar size={28} />
             <div className="rounded-2xl border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground">
-              Luma is thinking…
+              {t("form.thinking")}
             </div>
           </div>
         )}
@@ -638,7 +638,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder={currentField?.fieldType === "date" ? "DD/MM/YYYY" : "Type your answer…"}
+              placeholder={currentField?.fieldType === "date" ? t("form.datePlaceholder") : t("form.placeholder")}
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               dir={lang === "AR" ? "rtl" : "ltr"}
               disabled={isLoading}
@@ -651,7 +651,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                     ? "bg-destructive text-destructive-foreground animate-pulse"
                     : "border border-border bg-background text-foreground hover:bg-muted"
                 }`}
-                title={listening ? "Stop recording" : "Voice input"}
+                title={listening ? t("form.stopRecording") : t("form.voiceInput")}
               >
                 🎤
               </button>
@@ -661,7 +661,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               disabled={isLoading || !input.trim()}
               className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50"
             >
-              Send
+              {t("form.send")}
             </button>
           </div>
           <div className="mt-1.5 flex items-center justify-between">
@@ -676,7 +676,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                 }}
                 className="text-[10px] font-semibold text-primary hover:underline"
               >
-                💾 Save & continue later
+                {t("form.saveAndContinue")}
               </button>
               {fieldIndex > 0 && !correctionMode && (
                 <button
@@ -684,18 +684,18 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                   disabled={isLoading}
                   className="text-[10px] font-semibold text-destructive hover:underline disabled:opacity-50"
                 >
-                  ↩ Undo last answer
+                  {t("form.undoLast")}
                 </button>
               )}
             </div>
             {sessionCode && (
               <span className="text-[10px] text-muted-foreground">
-                Session: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
+                {t("form.session")}: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
               </span>
             )}
           </div>
           <p className="mt-1 text-center text-[10px] text-muted-foreground">
-            🔒 Saved on your device only · Not sent anywhere
+            {t("form.privacy")}
           </p>
         </div>
       )}
