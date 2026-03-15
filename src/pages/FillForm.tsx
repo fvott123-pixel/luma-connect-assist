@@ -24,6 +24,7 @@ const FillForm = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastAnsweredField, setLastAnsweredField] = useState<string | null>(null);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
