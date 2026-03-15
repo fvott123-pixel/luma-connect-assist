@@ -412,9 +412,20 @@ const SA466FormPreview = ({ answers, scrollToField, onSignatureChange, signature
               <span className="text-[9px] font-bold text-gray-700">71</span>
               <span className="text-[9px] font-semibold text-gray-700">Your signature</span>
             </div>
-            <div className="ml-3 h-[40px] border-b-2 border-gray-600 flex items-end">
-              <span className="text-[9px] text-gray-400 italic mb-1">✍️ Sign here after printing</span>
+            <div className="ml-3 print:hidden">
+              <SignaturePad onSignatureChange={onSignatureChange || (() => {})} initialSignature={signatureDataUrl} />
             </div>
+            {/* Print version: show the signature image */}
+            {signatureDataUrl && (
+              <div className="ml-3 hidden print:block h-[60px]">
+                <img src={signatureDataUrl} alt="Signature" className="h-full object-contain" />
+              </div>
+            )}
+            {!signatureDataUrl && (
+              <div className="ml-3 hidden print:block h-[40px] border-b-2 border-gray-600 flex items-end">
+                <span className="text-[9px] text-gray-400 italic mb-1">✍️ Sign here</span>
+              </div>
+            )}
           </div>
         </PageWrap>
 
