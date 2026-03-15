@@ -68,6 +68,7 @@ interface FormFillingChatProps {
   prefilled?: Record<string, string>;
   onAnswersChange?: (answers: Record<string, string>) => void;
   onComplete?: () => void;
+  onFieldAnswered?: (fieldId: string) => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
@@ -105,7 +106,7 @@ function getCurrentSection(questionNumber: number): string {
   return sec?.title || "";
 }
 
-const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }: FormFillingChatProps) => {
+const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered }: FormFillingChatProps) => {
   const { lang, dir } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>(prefilled || {});
@@ -214,6 +215,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
 
     const newAnswers = { ...answers, [currentField.id]: cleanAnswer };
     setAnswers(newAnswers);
+    onFieldAnswered?.(currentField.id);
     setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
     setIsLoading(true);
     setInput("");

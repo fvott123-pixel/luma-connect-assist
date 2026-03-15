@@ -6,6 +6,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 interface PdfPreviewProps {
   answers: Record<string, string>;
+  scrollToField?: string | null;
 }
 
 const PDF_PATHS = [
@@ -28,7 +29,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
   return null;
 }
 
-const PdfPreview = ({ answers }: PdfPreviewProps) => {
+const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
   const [canvasMode, setCanvasMode] = useState(true);
   const [initialized, setInitialized] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -167,6 +168,18 @@ const PdfPreview = ({ answers }: PdfPreviewProps) => {
       setCanvasMode(false);
     }
   }, [answers]);
+
+  // Scroll to the canvas containing the last answered field
+  useEffect(() => {
+    if (!scrollToField || !containerRef.current) return;
+    const field = SA466_FIELDS.find(f => f.id === scrollToField);
+    if (!field) return;
+    const pageNum = field.pageNumber + 1;
+    const canvas = canvasRefs.current.get(pageNum);
+    if (canvas) {
+      canvas.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [scrollToField, answers]);
 
   useEffect(() => {
     if (!canvasMode || !initialized) return;

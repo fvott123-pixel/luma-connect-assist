@@ -24,6 +24,7 @@ const FillForm = () => {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastAnsweredField, setLastAnsweredField] = useState<string | null>(null);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
@@ -90,53 +91,49 @@ const FillForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir={dir}>
+    <div className="h-screen flex flex-col bg-background overflow-hidden" dir={dir}>
       <TopBar />
       <StickyNav />
-      <main className="mx-auto max-w-7xl px-4 py-6">
-        <button onClick={() => navigate("/")} className="mb-4 text-sm font-semibold text-primary hover:underline">
-          ← Back
-        </button>
+      <main className="flex flex-col flex-1 min-h-0 px-4 py-2 mx-auto w-full max-w-7xl">
+        <div className="flex items-center justify-between mb-2">
+          <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
+            ← Back
+          </button>
+          {isComplete && (
+            <button
+              onClick={handleDownload}
+              disabled={isGenerating}
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
+            >
+              {isGenerating ? "⏳ Generating…" : "📥 Download PDF"}
+            </button>
+          )}
+        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" style={{ minHeight: "calc(100vh - 200px)" }}>
-          {/* Left: Chat */}
-          <div className="flex flex-col min-h-[500px] lg:min-h-0">
+        {/* Two-panel layout: fills remaining viewport */}
+        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Left: Chat — fixed height, internal scroll */}
+          <div className="flex flex-col min-h-[400px] lg:min-h-0 overflow-hidden">
             <FormFillingChat
               serviceSlug={slug}
               prefilled={prefilled}
               onAnswersChange={handleAnswersChange}
               onComplete={() => setIsComplete(true)}
+              onFieldAnswered={setLastAnsweredField}
             />
           </div>
 
-          {/* Right: Live PDF Preview */}
-          <div className="flex flex-col gap-4 min-h-[500px] lg:min-h-0">
-            <div className="flex-1 min-h-0">
-              <PdfPreview answers={answers} />
-            </div>
-
-            {isComplete && (
-              <button
-                onClick={handleDownload}
-                disabled={isGenerating}
-                className="w-full rounded-xl bg-primary py-4 text-base font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
-              >
-                {isGenerating ? "⏳ Generating PDF…" : "📥 Download completed form — ready to print and post"}
-              </button>
-            )}
+          {/* Right: PDF Preview — fixed height, internal scroll */}
+          <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
+            <PdfPreview answers={answers} scrollToField={lastAnsweredField} />
           </div>
         </div>
 
-        <div className="mt-6 rounded-2xl border border-primary/15 bg-secondary p-5">
-          <div className="flex gap-4">
-            <span className="text-[28px]">🔒</span>
-            <div>
-              <h3 className="mb-1 font-serif text-[15px] font-bold text-primary">Your data stays private</h3>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Nothing is saved or sent to the government. Your answers are used only to fill the PDF on your device, then deleted. NCCSA is not connected to immigration or any enforcement agency.
-              </p>
-            </div>
-          </div>
+        <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
+          <span className="text-lg">🔒</span>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-bold text-primary">Your data stays private.</span> Nothing is saved or sent to the government. Answers fill the PDF on your device only.
+          </p>
         </div>
       </main>
       <Footer />
