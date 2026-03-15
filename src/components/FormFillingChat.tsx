@@ -110,10 +110,10 @@ function getCurrentSection(questionNumber: number): string {
   return sec?.title || "";
 }
 
-const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered }: FormFillingChatProps) => {
+const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered, resumedAnswers, resumedFieldIndex, onSaveAndExit }: FormFillingChatProps) => {
   const { lang, dir } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [answers, setAnswers] = useState<Record<string, string>>(prefilled || {});
+  const [answers, setAnswers] = useState<Record<string, string>>({ ...(prefilled || {}), ...(resumedAnswers || {}) });
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -123,7 +123,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoice);
   const [input, setInput] = useState("");
   const initRef = useRef(false);
-  const [fieldIndex, setFieldIndex] = useState(0);
+  const [fieldIndex, setFieldIndex] = useState(resumedFieldIndex || 0);
+  const [sessionCode, setSessionCode] = useState<string>("");
 
   // Active fields — recalculated whenever answers change
   const activeFields = getActiveFields(answers, prefilled);
