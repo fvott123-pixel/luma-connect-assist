@@ -91,7 +91,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
     // Regular text
     page.drawText(value, {
       x: field.x,
-      y: field.y,
+      y: field.y + Y_OFFSET,
       size: fontSize,
       font,
       color,
