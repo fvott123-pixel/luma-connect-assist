@@ -320,6 +320,35 @@ const FillForm = () => {
           </div>
         </div>
 
+        {/* Post-download success message */}
+        {downloadComplete && (
+          <div className="mb-2 rounded-2xl border border-primary/20 bg-card p-6 text-center shadow-md">
+            <span className="text-4xl">🎉</span>
+            <p className="mt-3 text-sm font-medium text-foreground leading-relaxed">{t("form.downloadSuccess")}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => toast.info("Email feature coming soon!")}
+                className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold text-foreground transition-all hover:bg-muted"
+              >
+                {t("form.emailToSelf")}
+              </button>
+              <button
+                onClick={() => {
+                  clearSession(slug);
+                  setDownloadComplete(false);
+                  setIsComplete(false);
+                  setAnswers({});
+                  setPrefilled({});
+                  setPhase("vault");
+                }}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+              >
+                {t("form.startOver")}
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
