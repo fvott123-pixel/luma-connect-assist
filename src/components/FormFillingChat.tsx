@@ -225,8 +225,11 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     return undefined;
   }
 
-  // Correction phrases detection
-  const CORRECTION_PATTERNS = /^(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last)$/i;
+  // Correction phrases detection — match anywhere in the input, not just exact match
+  const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake)\b/i;
+
+  // Skip/none phrases for detecting skip attempts
+  const SKIP_PATTERNS = /^(none|skip|n\/a|na|not applicable|no answer|pass|don't have|dont have|i don't know|i dont know|nothing|nil|—|-|\.{1,3})$/i;
 
   const [correctionMode, setCorrectionMode] = useState<{ fieldId: string; fieldIndex: number; label: string } | null>(null);
 
