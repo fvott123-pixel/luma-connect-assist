@@ -9,6 +9,7 @@ import PdfPreview from "@/components/PdfPreview";
 import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
+import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
 
 const serviceNames: Record<string, string> = {
   "disability-support": "Disability Support Pension (SA466)",
@@ -19,12 +20,14 @@ const FillForm = () => {
   const navigate = useNavigate();
   const { dir } = useLanguage();
 
-  const [phase, setPhase] = useState<"upload" | "filling">("upload");
+  const [phase, setPhase] = useState<"resume-check" | "upload" | "filling">("resume-check");
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastAnsweredField, setLastAnsweredField] = useState<string | null>(null);
+  const [resumedSession, setResumedSession] = useState<FormSession | null>(null);
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
@@ -41,6 +44,90 @@ const FillForm = () => {
         </button>
       </div>
     );
+  }
+
+  // Check for saved session on first render
+  if (phase === "resume-check") {
+    const saved = loadSession(slug);
+    if (saved && Object.keys(saved.answers).length > 0) {
+      // Show resume UI
+      return (
+        <div className="min-h-screen bg-background" dir={dir}>
+          <TopBar />
+          <StickyNav />
+          <main className="mx-auto max-w-lg px-4 py-16">
+            <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+              <span className="text-5xl">👋</span>
+              <h2 className="mt-4 font-serif text-xl font-bold text-foreground">Welcome back!</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                I saved your progress last time — you answered{" "}
+                <span className="font-bold text-foreground">
+                  {Object.keys(saved.answers).filter(k => saved.answers[k] && saved.answers[k].toLowerCase() !== "none").length}
+                </span>{" "}
+                questions. Would you like to continue where you left off?
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Session code: <span className="font-mono font-bold text-foreground">{saved.sessionCode}</span>
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
+                <button
+                  onClick={() => {
+                    setResumedSession(saved);
+                    setAnswers(saved.answers);
+                    setPhase("filling");
+                  }}
+                  className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+                >
+                  ✅ Yes, continue
+                </button>
+                <button
+                  onClick={() => {
+                    clearSession(slug);
+                    setPhase("upload");
+                  }}
+                  className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-muted"
+                >
+                  🔄 Start fresh
+                </button>
+              </div>
+
+              <div className="mt-8 border-t border-border pt-6">
+                <p className="text-xs text-muted-foreground mb-2">Or recover a different session with a code:</p>
+                <div className="flex gap-2 justify-center">
+                  <input
+                    value={recoveryCode}
+                    onChange={e => setRecoveryCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                    placeholder="6-digit code"
+                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  />
+                  <button
+                    onClick={() => {
+                      const found = loadSessionByCode(recoveryCode);
+                      if (found) {
+                        setResumedSession(found);
+                        setAnswers(found.answers);
+                        setPhase("filling");
+                        toast.success("Session recovered! Continuing your form.");
+                      } else {
+                        toast.error("No session found with that code.");
+                      }
+                    }}
+                    disabled={recoveryCode.length !== 6}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                  >
+                    Recover
+                  </button>
+                </div>
+              </div>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+    // No saved session — go to upload
+    setPhase("upload");
+    return null;
   }
 
   const handleExtracted = (data: Record<string, string>) => {
@@ -63,7 +150,9 @@ const FillForm = () => {
       const pdfBytes = await prefillSA466(data);
       const today = new Date().toLocaleDateString("en-AU");
       downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
-      toast.success("Your completed form has been downloaded! 🎉 Ready to print and post.");
+      // Clear saved session on successful download
+      clearSession(slug);
+      toast.success("Your completed form has been downloaded! 🎉 Saved session cleared.");
     } catch (err) {
       console.error("PDF error:", err);
       toast.error("Could not generate PDF. Please try again.");
@@ -110,9 +199,7 @@ const FillForm = () => {
           )}
         </div>
 
-        {/* Two-panel layout: fills remaining viewport */}
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Left: Chat — fixed height, internal scroll */}
           <div className="flex flex-col min-h-[400px] lg:min-h-0 overflow-hidden">
             <FormFillingChat
               serviceSlug={slug}
@@ -120,10 +207,11 @@ const FillForm = () => {
               onAnswersChange={handleAnswersChange}
               onComplete={() => setIsComplete(true)}
               onFieldAnswered={setLastAnsweredField}
+              resumedAnswers={resumedSession?.answers}
+              resumedFieldIndex={resumedSession?.fieldIndex}
             />
           </div>
 
-          {/* Right: PDF Preview — fixed height, internal scroll */}
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
             <PdfPreview answers={answers} scrollToField={lastAnsweredField} />
           </div>
@@ -132,7 +220,7 @@ const FillForm = () => {
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-bold text-primary">Your data stays private.</span> Nothing is saved or sent to the government. Answers fill the PDF on your device only.
+            <span className="font-bold text-primary">Your data stays private.</span> Progress is saved on your device only. Nothing is sent to the government until you print and post.
           </p>
         </div>
       </main>
