@@ -14,11 +14,27 @@ export interface DocumentSlot {
 
 const DOCUMENT_SLOTS: DocumentSlot[] = [
   {
-    id: "photoId",
-    label: "Driver's Licence or Passport",
-    description: "For your name, date of birth, address and gender",
+    id: "licenceFront",
+    label: "Driver's Licence — Front",
+    description: "Full name, date of birth, address, licence number",
     icon: "🪪",
-    documentType: "photoId",
+    documentType: "licenceFront",
+    accept: "image/*",
+  },
+  {
+    id: "licenceBack",
+    label: "Driver's Licence — Back",
+    description: "Additional licence details and barcode",
+    icon: "🔄",
+    documentType: "licenceBack",
+    accept: "image/*",
+  },
+  {
+    id: "passport",
+    label: "Passport — Photo Page",
+    description: "Full name, date of birth, passport number, nationality, expiry",
+    icon: "🛂",
+    documentType: "passport",
     accept: "image/*",
   },
   {
@@ -47,7 +63,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
   },
   {
     id: "taxReturn",
-    label: "Tax Return or Centrelink Letter",
+    label: "Centrelink or Tax Letter",
     description: "For your Tax File Number or CRN",
     icon: "📄",
     documentType: "taxReturn",
@@ -55,7 +71,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
   },
   {
     id: "medicalReport",
-    label: "Medical Report or Specialist Letter",
+    label: "Medical Reports or Specialist Letters",
     description: "For your disability and doctor details",
     icon: "🏥",
     documentType: "medicalReport",
@@ -79,17 +95,16 @@ interface DocumentVaultProps {
 }
 
 /**
- * Map raw extracted document data to SA466 form field IDs.
+ * Map raw extracted document data to form field IDs.
  */
 function mapToFormFields(documentType: string, data: Record<string, string>): Record<string, string> {
   const mapped: Record<string, string> = {};
 
   switch (documentType) {
-    case "photoId": {
+    case "licenceFront": {
       if (data.firstName) mapped.firstName = data.firstName;
       if (data.surname) mapped.familyName = data.surname;
       if (data.dateOfBirth) {
-        // Handle various date formats, convert to DD/MM/YYYY
         if (data.dateOfBirth.includes("-")) {
           const [y, m, d] = data.dateOfBirth.split("-");
           if (d && m && y) mapped.dob = `${d}/${m}/${y}`;
@@ -102,6 +117,47 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
         mapped.permanentAddress = full || data.address;
       }
       if (data.postcode) mapped.postcode = data.postcode;
+      if (data.licenceNumber) mapped.licenceNumber = data.licenceNumber;
+      if (data.expiryDate) mapped.licenceExpiry = data.expiryDate;
+      if (data.gender) {
+        mapped.gender = data.gender;
+        if (data.gender === "Male") mapped.title = "Mr";
+        else if (data.gender === "Female") mapped.title = "Ms";
+      }
+      break;
+    }
+    case "licenceBack": {
+      // Back may have additional address info or licence class
+      if (data.address) mapped.permanentAddress = data.address;
+      if (data.licenceNumber) mapped.licenceNumber = data.licenceNumber;
+      break;
+    }
+    case "passport": {
+      if (data.firstName) mapped.passport_firstName = data.firstName;
+      if (data.surname) mapped.passport_familyName = data.surname;
+      if (data.dateOfBirth) {
+        if (data.dateOfBirth.includes("-")) {
+          const [y, m, d] = data.dateOfBirth.split("-");
+          if (d && m && y) mapped.passport_dob = `${d}/${m}/${y}`;
+        } else {
+          mapped.passport_dob = data.dateOfBirth;
+        }
+      }
+      if (data.passportNumber) mapped.passportNumber = data.passportNumber;
+      if (data.nationality) mapped.nationality = data.nationality;
+      if (data.expiryDate) mapped.passportExpiry = data.expiryDate;
+      if (data.gender) mapped.passport_gender = data.gender;
+      // Also set primary fields from passport (preferred by Services Australia)
+      if (data.firstName) mapped.firstName = data.firstName;
+      if (data.surname) mapped.familyName = data.surname;
+      if (data.dateOfBirth) {
+        if (data.dateOfBirth.includes("-")) {
+          const [y, m, d] = data.dateOfBirth.split("-");
+          if (d && m && y) mapped.dob = `${d}/${m}/${y}`;
+        } else {
+          mapped.dob = data.dateOfBirth;
+        }
+      }
       if (data.gender) {
         mapped.gender = data.gender;
         if (data.gender === "Male") mapped.title = "Mr";
@@ -147,7 +203,6 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
   }
 
-  // Filter out empty strings
   return Object.fromEntries(Object.entries(mapped).filter(([, v]) => v && v.trim() !== ""));
 }
 
@@ -164,16 +219,56 @@ function summarizeExtraction(documentType: string, data: Record<string, string>)
     primaryCondition: "primary condition", treatingDoctor: "treating doctor", doctorAddress: "doctor address",
     doctorPhone: "doctor phone", conditionStartDate: "condition start date", otherConditions: "other conditions",
     treatments: "treatment details", rentAmount: "rent amount",
+    licenceNumber: "licence number", licenceExpiry: "licence expiry",
+    passportNumber: "passport number", nationality: "nationality", passportExpiry: "passport expiry",
+    passport_firstName: "passport name", passport_familyName: "passport surname", passport_dob: "passport DOB",
+    passport_gender: "passport gender",
   };
 
   const docLabels: Record<string, string> = {
-    photoId: "your ID", medicareCard: "your Medicare card", centrelinkCard: "your Centrelink card",
-    bankStatement: "your bank statement", taxReturn: "your tax document", medicalReport: "your medical report",
+    licenceFront: "your driver's licence (front)",
+    licenceBack: "your driver's licence (back)",
+    passport: "your passport",
+    medicareCard: "your Medicare card",
+    centrelinkCard: "your Centrelink card",
+    bankStatement: "your bank statement",
+    taxReturn: "your tax/Centrelink letter",
+    medicalReport: "your medical report",
     leaseAgreement: "your lease agreement",
   };
 
   const found = fields.map(([k]) => labels[k] || k).join(", ");
   return `From ${docLabels[documentType] || "your document"}: ${found}`;
+}
+
+/**
+ * Cross-check licence vs passport details and return discrepancies.
+ */
+function crossCheckIdDocuments(allExtracted: Record<string, string>): string[] {
+  const discrepancies: string[] = [];
+
+  const licenceName = [allExtracted.firstName, allExtracted.familyName].filter(Boolean).join(" ");
+  const passportName = [allExtracted.passport_firstName, allExtracted.passport_familyName].filter(Boolean).join(" ");
+
+  if (licenceName && passportName && licenceName.toLowerCase() !== passportName.toLowerCase()) {
+    discrepancies.push(
+      `⚠️ Name mismatch: Licence says "${licenceName}" but passport says "${passportName}". Passport name will be used as Services Australia prefers passport details.`
+    );
+  }
+
+  if (allExtracted.dob && allExtracted.passport_dob && allExtracted.dob !== allExtracted.passport_dob) {
+    discrepancies.push(
+      `⚠️ Date of birth mismatch: Licence says "${allExtracted.dob}" but passport says "${allExtracted.passport_dob}".`
+    );
+  }
+
+  if (allExtracted.gender && allExtracted.passport_gender && allExtracted.gender !== allExtracted.passport_gender) {
+    discrepancies.push(
+      `⚠️ Gender mismatch: Licence says "${allExtracted.gender}" but passport says "${allExtracted.passport_gender}".`
+    );
+  }
+
+  return discrepancies;
 }
 
 const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
@@ -182,10 +277,10 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
   );
   const [allExtracted, setAllExtracted] = useState<Record<string, string>>({});
   const [summaries, setSummaries] = useState<string[]>([]);
+  const [discrepancies, setDiscrepancies] = useState<string[]>([]);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const uploadedOrSkippedCount = Object.values(statuses).filter(s => s !== "idle" && s !== "uploading").length;
-  const allProcessed = uploadedOrSkippedCount === DOCUMENT_SLOTS.length;
 
   const handleFile = async (slot: DocumentSlot, file: File) => {
     if (file.size > 15 * 1024 * 1024) {
@@ -214,7 +309,15 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
         const mapped = mapToFormFields(slot.documentType, data.extracted);
         const summary = summarizeExtraction(slot.documentType, mapped);
 
-        setAllExtracted(prev => ({ ...prev, ...mapped }));
+        setAllExtracted(prev => {
+          const updated = { ...prev, ...mapped };
+          // Cross-check after passport or licence upload
+          if (slot.documentType === "passport" || slot.documentType === "licenceFront") {
+            const checks = crossCheckIdDocuments(updated);
+            setDiscrepancies(checks);
+          }
+          return updated;
+        });
         if (summary) setSummaries(prev => [...prev, summary]);
 
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
@@ -234,7 +337,7 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
   };
 
   const handleDone = () => {
-    onComplete(allExtracted, summaries);
+    onComplete(allExtracted, [...summaries, ...discrepancies]);
   };
 
   return (
@@ -313,6 +416,18 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
           );
         })}
       </div>
+
+      {/* Discrepancies */}
+      {discrepancies.length > 0 && (
+        <div className="mt-5 w-full rounded-xl border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-900/10 p-4">
+          <div className="text-sm font-bold text-foreground mb-2">🔍 Luma noticed some differences:</div>
+          <ul className="space-y-1">
+            {discrepancies.map((d, i) => (
+              <li key={i} className="text-xs text-foreground/80">{d}</li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Summary of what was found */}
       {summaries.length > 0 && (
