@@ -7,10 +7,11 @@ import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
 import FieldReviewModal, { getSuspiciousFields } from "@/components/FieldReviewModal";
-import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const serviceNames: Record<string, string> = {
   "disability-support": "Disability Support Pension (SA466)",
@@ -153,24 +154,83 @@ const FillForm = () => {
     doDownload();
   };
 
+  const printFallback = () => {
+    console.log("PDF: Using window.print() fallback");
+    // Add print CSS to hide everything except form preview
+    const style = document.createElement("style");
+    style.id = "print-pdf-style";
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden !important; }
+        #form-preview-panel, #form-preview-panel * { visibility: visible !important; }
+        #form-preview-panel {
+          position: absolute !important; left: 0 !important; top: 0 !important;
+          width: 100% !important; overflow: visible !important; height: auto !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => style.remove(), 1000);
+    setIsGenerating(false);
+    toast.success("Print dialog opened — save as PDF from there.");
+  };
+
   const doDownload = async () => {
     setShowReview(false);
     setIsGenerating(true);
-    try {
-      const data = { ...answers };
-      if (data.postalAddress?.toLowerCase() === "same" || data.postalAddress?.toLowerCase() === "yes") {
-        data.postalAddress = data.permanentAddress || "";
-      }
-      const pdfBytes = await prefillSA466(data, signatureDataUrl);
-      const today = new Date().toLocaleDateString("en-AU");
-      downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
-      clearSession(slug);
-      toast.success("Your completed form has been downloaded! 🎉 Saved session cleared.");
-    } catch (err) {
-      console.error("PDF error:", err);
-      toast.error("Could not generate PDF. Please try again.");
-    } finally {
+    console.log("Starting PDF generation");
+
+    // 30-second timeout
+    const timeoutId = setTimeout(() => {
+      console.error("PDF generation timed out after 30s");
       setIsGenerating(false);
+      toast.error("Something went wrong. Please try again.");
+    }, 30000);
+
+    try {
+      const previewEl = document.getElementById("form-preview-panel");
+      if (!previewEl) {
+        console.error("PDF: Form preview panel not found");
+        clearTimeout(timeoutId);
+        printFallback();
+        return;
+      }
+
+      console.log("Capturing HTML canvas");
+      const canvas = await html2canvas(previewEl, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: previewEl.scrollWidth,
+        windowHeight: previewEl.scrollHeight,
+      });
+
+      console.log("Converting to PDF");
+      const imgData = canvas.toDataURL("image/png");
+      const pxWidth = canvas.width;
+      const pxHeight = canvas.height;
+      // A4 width in mm
+      const pdfWidth = 210;
+      const pdfHeight = (pxHeight * pdfWidth) / pxWidth;
+
+      const pdf = new jsPDF({ orientation: pdfHeight > pdfWidth ? "portrait" : "landscape", unit: "mm", format: [pdfWidth, pdfHeight] });
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      const today = new Date().toLocaleDateString("en-AU");
+      pdf.save(`SA466-DSP-prefilled-${today}.pdf`);
+      console.log("PDF ready — downloading");
+
+      clearTimeout(timeoutId);
+      clearSession(slug);
+      setIsGenerating(false);
+      toast.success("Your completed form has been downloaded! 🎉");
+    } catch (err) {
+      console.error("PDF html2canvas error:", err);
+      clearTimeout(timeoutId);
+      // Fallback to window.print()
+      printFallback();
     }
   };
 
@@ -205,9 +265,12 @@ const FillForm = () => {
             <button
               onClick={handleDownloadClick}
               disabled={isGenerating}
-              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
             >
-              {isGenerating ? t("form.generating") : t("form.downloadPdf")}
+              {isGenerating && (
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              )}
+              {isGenerating ? (t("form.generating") || "Generating your form...") : t("form.downloadPdf")}
             </button>
           )}
         </div>
@@ -236,7 +299,7 @@ const FillForm = () => {
               onFixFieldHandled={() => setFixFieldId(null)}
             />
           </div>
-          <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
+          <div id="form-preview-panel" className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
             <PdfPreview answers={answers} scrollToField={lastAnsweredField} onSignatureChange={setSignatureDataUrl} signatureDataUrl={signatureDataUrl} />
           </div>
         </div>
