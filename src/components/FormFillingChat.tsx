@@ -4,7 +4,7 @@ import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
 import { saveSession } from "@/lib/formSession";
-import { parseNaturalDate } from "@/lib/dateParser";
+import { parseNaturalDate, type DateParseResult } from "@/lib/dateParser";
 
 const TRANSLATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-answer`;
 
