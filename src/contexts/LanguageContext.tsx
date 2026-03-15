@@ -338,4 +338,25 @@ export const translations: Translations = {
   "form.privacyBanner": { EN: "Your data stays private.", AR: "بياناتك تبقى خاصة.", NP: "तपाईंको डाटा निजी रहन्छ।", IT: "I tuoi dati restano privati.", VI: "Dữ liệu của bạn được bảo mật." },
   "form.privacyDesc": { EN: "Documents are deleted after reading. Progress saved on your device only.", AR: "يتم حذف المستندات بعد القراءة. يتم حفظ التقدم على جهازك فقط.", NP: "कागजातहरू पढेपछि मेटिन्छन्। प्रगति तपाईंको उपकरणमा मात्र सुरक्षित।", IT: "I documenti vengono eliminati dopo la lettura. I progressi salvati solo sul tuo dispositivo.", VI: "Tài liệu được xóa sau khi đọc. Tiến trình chỉ lưu trên thiết bị của bạn." },
   "form.translating": { EN: "Translating…", AR: "جاري الترجمة…", NP: "अनुवाद गर्दै…", IT: "Traduzione in corso…", VI: "Đang dịch…" },
+  "form.downloadSuccess": {
+    EN: "Your form has been downloaded! Print it, sign it and post it to: Reply Paid 7800, Canberra BC ACT 2610. Postage is free.",
+    AR: "تم تنزيل النموذج! اطبعه وقم بتوقيعه وأرسله إلى: Reply Paid 7800, Canberra BC ACT 2610. البريد مجاني.",
+    NP: "तपाईंको फारम डाउनलोड भयो! यसलाई प्रिन्ट गर्नुहोस्, हस्ताक्षर गर्नुहोस् र पठाउनुहोस्: Reply Paid 7800, Canberra BC ACT 2610. हुलाक निःशुल्क छ।",
+    IT: "Il tuo modulo è stato scaricato! Stampalo, firmalo e spediscilo a: Reply Paid 7800, Canberra BC ACT 2610. La posta è gratuita.",
+    VI: "Biểu mẫu của bạn đã được tải xuống! In ra, ký tên và gửi đến: Reply Paid 7800, Canberra BC ACT 2610. Bưu phí miễn phí.",
+  },
+  "form.emailToSelf": {
+    EN: "📧 Email to myself",
+    AR: "📧 أرسل لنفسي بالبريد الإلكتروني",
+    NP: "📧 आफैंलाई इमेल गर्नुहोस्",
+    IT: "📧 Invia per email a me stesso",
+    VI: "📧 Gửi email cho tôi",
+  },
+  "form.startOver": {
+    EN: "🔄 Start over",
+    AR: "🔄 ابدأ من جديد",
+    NP: "🔄 फेरि सुरु गर्नुहोस्",
+    IT: "🔄 Ricomincia da capo",
+    VI: "🔄 Bắt đầu lại",
+  },
 };
