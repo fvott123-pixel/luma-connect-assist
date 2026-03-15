@@ -241,7 +241,7 @@ const FillForm = () => {
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-bold text-primary">Your data stays private.</span> Documents are deleted after reading. Progress saved on your device only.
+            <span className="font-bold text-primary">{t("form.privacyBanner")}</span> {t("form.privacyDesc")}
           </p>
         </div>
       </main>
