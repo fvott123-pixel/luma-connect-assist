@@ -19,7 +19,7 @@ const serviceNames: Record<string, string> = {
 const FillForm = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { dir } = useLanguage();
+  const { dir, t } = useLanguage();
 
   const [phase, setPhase] = useState<"resume-check" | "vault" | "filling">("resume-check");
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
