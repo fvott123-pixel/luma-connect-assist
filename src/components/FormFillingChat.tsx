@@ -4,6 +4,7 @@ import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
 import { saveSession } from "@/lib/formSession";
+import { parseNaturalDate } from "@/lib/dateParser";
 
 type Msg = {
   role: "user" | "assistant";
@@ -235,7 +236,45 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
+    // ── Date field: parse natural language dates ──
+    if (currentField.fieldType === "date") {
+      const dateResult = parseNaturalDate(cleanAnswer);
+      if (dateResult) {
+        // Show confirmation message with converted date
+        const finalDate = dateResult.parsed;
+        setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `📅 I've entered **${finalDate}** as ${dateResult.label} — is that correct?`,
+          buttons: [
+            { label: "✅ Yes, correct", value: `__CONFIRM_DATE__${finalDate}` },
+            { label: "✏️ No, let me type it", value: "__REJECT_DATE__" },
+          ],
+        }]);
+        return;
+      }
+
+      // Handle date confirmation
+      if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
+        const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
+        applyAnswer(confirmed);
+        return;
+      }
+      if (cleanAnswer === "__REJECT_DATE__") {
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "No worries! Please type the date in DD/MM/YYYY format.",
+        }]);
+        return;
+      }
+    }
+
     console.log(`Answer received: ${cleanAnswer}`);
+    applyAnswer(cleanAnswer);
+  };
+
+  const applyAnswer = (cleanAnswer: string) => {
+    if (!currentField) return;
 
     const placement = currentField.tickPositions?.[cleanAnswer]
       ? {
