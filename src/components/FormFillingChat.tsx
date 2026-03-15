@@ -6,6 +6,8 @@ import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa
 import { saveSession } from "@/lib/formSession";
 import { parseNaturalDate } from "@/lib/dateParser";
 
+const TRANSLATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-answer`;
+
 type Msg = {
   role: "user" | "assistant";
   content: string;
