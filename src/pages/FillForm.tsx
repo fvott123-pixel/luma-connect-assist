@@ -6,7 +6,6 @@ import Footer from "@/components/landing/Footer";
 import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
-import FieldReviewModal, { getSuspiciousFields } from "@/components/FieldReviewModal";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
