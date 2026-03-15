@@ -343,19 +343,32 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     // ── Date field: parse natural language dates (works for all languages via dateParser) ──
     if (currentField.fieldType === "date") {
       const dateResult = parseNaturalDate(cleanAnswer);
+      
       if (dateResult) {
+        if (dateResult.type === "needDayMonth") {
+          // User typed just a year like "1999"
+          setMessages(prev => [...prev,
+            { role: "user", content: cleanAnswer },
+            { role: "assistant", content: `I have the year ${dateResult.year}. What day and month? For example: 15/03/${dateResult.year}` },
+          ]);
+          return;
+        }
+
+        // Parsed successfully — show confirmation
         const finalDate = dateResult.parsed;
         setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
-        // Auto-apply date without confirmation for smoother UX
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: `📅 ${finalDate}`,
+          content: `📅 I have entered ${finalDate} — is that correct?`,
+          buttons: [
+            { label: "✅ Yes", value: `__CONFIRM_DATE__${finalDate}` },
+            { label: "✏️ No, let me retype", value: "__REJECT_DATE__" },
+          ],
         }]);
-        applyAnswer(finalDate);
         return;
       }
 
-      // Handle date confirmation (legacy buttons)
+      // Handle date confirmation buttons
       if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
         const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
         applyAnswer(confirmed);
