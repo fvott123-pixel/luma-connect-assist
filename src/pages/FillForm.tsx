@@ -142,14 +142,25 @@ const FillForm = () => {
     setPhase("filling");
   };
 
-  const handleDownload = async () => {
+  const handleDownloadClick = () => {
+    // Check for suspicious fields first
+    const issues = getSuspiciousFields(answers);
+    if (issues.length > 0) {
+      setShowReview(true);
+      return;
+    }
+    doDownload();
+  };
+
+  const doDownload = async () => {
+    setShowReview(false);
     setIsGenerating(true);
     try {
       const data = { ...answers };
       if (data.postalAddress?.toLowerCase() === "same" || data.postalAddress?.toLowerCase() === "yes") {
         data.postalAddress = data.permanentAddress || "";
       }
-      const pdfBytes = await prefillSA466(data);
+      const pdfBytes = await prefillSA466(data, signatureDataUrl);
       const today = new Date().toLocaleDateString("en-AU");
       downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
       clearSession(slug);
