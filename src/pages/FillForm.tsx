@@ -31,6 +31,7 @@ const FillForm = () => {
   const [recoveryCode, setRecoveryCode] = useState("");
   const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [downloadComplete, setDownloadComplete] = useState(false);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
@@ -147,7 +148,6 @@ const FillForm = () => {
 
   const doDownload = async () => {
     setIsGenerating(true);
-    setIsGenerating(true);
     console.log("Starting PDF generation");
 
     const timeoutId = setTimeout(() => {
@@ -242,21 +242,12 @@ const FillForm = () => {
       clearTimeout(timeoutId);
       clearSession(slug);
       setIsGenerating(false);
-      toast.success("Your completed form has been downloaded! 🎉");
+      setDownloadComplete(true);
     } catch (err) {
-      console.error("PDF generation error, falling back to print:", err);
+      console.error("PDF generation error:", err);
       clearTimeout(timeoutId);
-      // Fallback: window.print() with print CSS
-      try {
-        const style = document.createElement("style");
-        style.setAttribute("data-print-fallback", "true");
-        style.textContent = `@media print { body * { visibility: hidden !important; } #form-preview-panel, #form-preview-panel * { visibility: visible !important; } #form-preview-panel { position: absolute; left: 0; top: 0; width: 100%; } }`;
-        document.head.appendChild(style);
-        window.print();
-        document.head.removeChild(style);
-      } catch (_) { /* ignore */ }
       setIsGenerating(false);
-      toast.error("PDF generation failed. Used browser print as fallback.");
+      toast.error("PDF generation failed. Please try again.");
     }
   };
 
@@ -287,16 +278,16 @@ const FillForm = () => {
           <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
             {t("form.back")}
           </button>
-          {isComplete && (
+          {isComplete && !downloadComplete && (
             <button
               onClick={handleDownloadClick}
               disabled={isGenerating}
-              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50 shadow-lg"
             >
               {isGenerating && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               )}
-              {isGenerating ? (t("form.generating") || "Generating your form...") : t("form.downloadPdf")}
+              {isGenerating ? t("form.generating") : t("form.downloadPdf")}
             </button>
           )}
         </div>
@@ -327,6 +318,35 @@ const FillForm = () => {
             <PdfPreview answers={answers} scrollToField={lastAnsweredField} onSignatureChange={setSignatureDataUrl} signatureDataUrl={signatureDataUrl} />
           </div>
         </div>
+
+        {/* Post-download success message */}
+        {downloadComplete && (
+          <div className="mb-2 rounded-2xl border border-primary/20 bg-card p-6 text-center shadow-md">
+            <span className="text-4xl">🎉</span>
+            <p className="mt-3 text-sm font-medium text-foreground leading-relaxed">{t("form.downloadSuccess")}</p>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <button
+                onClick={() => toast.info("Email feature coming soon!")}
+                className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold text-foreground transition-all hover:bg-muted"
+              >
+                {t("form.emailToSelf")}
+              </button>
+              <button
+                onClick={() => {
+                  clearSession(slug);
+                  setDownloadComplete(false);
+                  setIsComplete(false);
+                  setAnswers({});
+                  setPrefilled({});
+                  setPhase("vault");
+                }}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+              >
+                {t("form.startOver")}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
