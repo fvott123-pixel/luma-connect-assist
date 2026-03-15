@@ -27,7 +27,7 @@ const PdfPreview = ({ answers }: PdfPreviewProps) => {
       }
 
       const pdfBytes = await prefillSA466(data);
-      const pdf = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: pdfBytes, password: "" }).promise;
 
       const container = containerRef.current;
       if (!container) return;
