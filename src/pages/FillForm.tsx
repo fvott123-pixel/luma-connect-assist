@@ -30,6 +30,8 @@ const FillForm = () => {
   const [resumedSession, setResumedSession] = useState<FormSession | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [showReview, setShowReview] = useState(false);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
