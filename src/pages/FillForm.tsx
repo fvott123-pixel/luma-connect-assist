@@ -279,16 +279,16 @@ const FillForm = () => {
           <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
             {t("form.back")}
           </button>
-          {isComplete && (
+          {isComplete && !downloadComplete && (
             <button
               onClick={handleDownloadClick}
               disabled={isGenerating}
-              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50 shadow-lg"
             >
               {isGenerating && (
                 <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
               )}
-              {isGenerating ? (t("form.generating") || "Generating your form...") : t("form.downloadPdf")}
+              {isGenerating ? t("form.generating") : t("form.downloadPdf")}
             </button>
           )}
         </div>
