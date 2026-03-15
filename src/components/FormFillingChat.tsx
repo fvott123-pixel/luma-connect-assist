@@ -457,7 +457,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       if (nextField.signatureNotice) {
         // Signature notice — tell user and auto-advance
         let text = "";
-        const prompt = `The user finished all data questions. Tell them warmly in ${LANG_NAMES[lang] || "English"}: "${nextField.signatureNotice}" Then say you'll now finish up. Keep it to 2 sentences.`;
+        const sigLangInstruction = lang !== "EN" ? `IMPORTANT: Respond ENTIRELY in ${LANG_NAMES[lang] || "English"}.` : "";
+        const prompt = `${sigLangInstruction} The user finished all data questions. Tell them warmly in ${LANG_NAMES[lang] || "English"}: "${nextField.signatureNotice}" Then say you'll now finish up. Keep it to 2 sentences.`;
         streamResponse({
           messages: [{ role: "user", content: prompt }],
           onDelta: (chunk) => {
