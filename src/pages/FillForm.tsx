@@ -255,8 +255,7 @@ const FillForm = () => {
           onConfirm={doDownload}
           onFixField={(fieldId) => {
             setShowReview(false);
-            setLastAnsweredField(fieldId);
-            toast.info(`Please update the "${fieldId}" field in the chat.`);
+            setFixFieldId(fieldId);
           }}
         />
       )}
