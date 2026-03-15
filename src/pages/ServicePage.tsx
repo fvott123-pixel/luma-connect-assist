@@ -30,6 +30,11 @@ const ServicePage = () => {
   const { t, dir } = useLanguage();
   const service = getServiceBySlug(slug || "");
 
+  // DSP goes straight to form filling — no eligibility questions
+  if (slug === "disability-support") {
+    return <Navigate to="/fill-form/disability-support" replace />;
+  }
+
   if (!service) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
