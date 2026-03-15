@@ -228,24 +228,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     return undefined;
   }
 
-  /** Translate a non-English answer to English via edge function */
-  async function translateToEnglish(text: string, sourceLang: string): Promise<string> {
-    try {
-      const resp = await fetch(TRANSLATE_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ text, sourceLang }),
-      });
-      if (!resp.ok) return text;
-      const data = await resp.json();
-      return data.translated || text;
-    } catch {
-      return text;
-    }
-  }
+  // translateToEnglish is now imported from i18nFormUtils
 
   // Correction phrases detection — match anywhere in the input, not just exact match
   const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake|era sbagliato|ho sbagliato|torna indietro|cambia risposta|errore|غلط|गलत भयो|sai rồi|lỗi rồi)\b/i;
