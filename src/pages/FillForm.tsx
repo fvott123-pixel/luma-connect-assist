@@ -214,7 +214,7 @@ const FillForm = () => {
         {/* Extraction summary banner */}
         {extractionSummary.length > 0 && (
           <div className="mb-2 rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 px-4 py-2">
-            <p className="text-[11px] font-bold text-foreground">📋 Pre-filled from your documents:</p>
+            <p className="text-[11px] font-bold text-foreground">{t("form.prefilledBanner")}</p>
             {extractionSummary.map((s, i) => (
               <p key={i} className="text-[10px] text-foreground/70">✅ {s}</p>
             ))}
