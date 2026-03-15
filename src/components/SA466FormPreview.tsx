@@ -1,8 +1,11 @@
 import { useRef, useEffect } from "react";
+import SignaturePad from "./SignaturePad";
 
 interface SA466FormPreviewProps {
   answers: Record<string, string>;
   scrollToField?: string | null;
+  onSignatureChange?: (dataUrl: string | null) => void;
+  signatureDataUrl?: string | null;
 }
 
 const SA466FormPreview = ({ answers, scrollToField }: SA466FormPreviewProps) => {
