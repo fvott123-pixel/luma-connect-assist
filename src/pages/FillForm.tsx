@@ -146,7 +146,7 @@ const FillForm = () => {
   };
 
   const doDownload = async () => {
-    setShowReview(false);
+    setIsGenerating(true);
     setIsGenerating(true);
     console.log("Starting PDF generation");
 
