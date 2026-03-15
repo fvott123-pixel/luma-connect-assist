@@ -6,6 +6,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs
 
 interface PdfPreviewProps {
   answers: Record<string, string>;
+  scrollToField?: string | null;
 }
 
 const PDF_PATHS = [
