@@ -14,9 +14,6 @@ const PDF_PATHS = [
   "/forms/CUsersfvottDesktopGovernment%20Forms/Disability%20Support%20Pension/sa466en.pdf",
 ];
 
-/** Coordinate offset — adjust all Y values down to align with actual form boxes */
-const Y_OFFSET = -20;
-
 function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
   const m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
@@ -32,6 +29,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
 const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
   const [canvasMode, setCanvasMode] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [debugMode, setDebugMode] = useState(true); // Debug ON by default
   const containerRef = useRef<HTMLDivElement>(null);
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const canvasRefs = useRef<Map<number, HTMLCanvasElement>>(new Map());
@@ -80,9 +78,11 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
 
       const highlightId = highlightFieldRef.current;
 
-      // Always render page 1 + pages with data
+      // Render ALL pages that have data, plus page 1 and page 7 (personal details)
       const pagesWithData = new Set<number>([1]);
+      // Always show pages with field mappings
       for (const field of SA466_FIELDS) {
+        pagesWithData.add(field.pageNumber + 1);
         const val = data[field.id];
         if (val && val.toLowerCase() !== "none" && val.toLowerCase() !== "skip") {
           pagesWithData.add(field.pageNumber + 1);
@@ -102,7 +102,18 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
           canvas = document.createElement("canvas");
           canvas.className = "w-full rounded-lg shadow-sm border border-border mb-2";
           canvas.dataset.pageNum = String(pageNum);
-          container.appendChild(canvas);
+          
+          // Insert in order
+          const existingCanvases = Array.from(canvasRefs.current.entries()).sort((a, b) => a[0] - b[0]);
+          let insertBefore: HTMLCanvasElement | null = null;
+          for (const [pn, c] of existingCanvases) {
+            if (pn > pageNum) { insertBefore = c; break; }
+          }
+          if (insertBefore) {
+            container.insertBefore(canvas, insertBefore);
+          } else {
+            container.appendChild(canvas);
+          }
           canvasRefs.current.set(pageNum, canvas);
         }
 
@@ -112,14 +123,67 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
-        // Clear and re-render base PDF
+        // Clear and render base PDF page
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         await page.render({ canvasContext: ctx, viewport }).promise;
 
-        // Overlay answers
+        // Add page number label
+        ctx.font = `bold ${11 * scale}px monospace`;
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillText(`Page ${pageNum}`, 4 * scale, 14 * scale);
+
+        // Get fields on this page (0-indexed pageNumber)
         const pageIndex = pageNum - 1;
         const fieldsOnPage = SA466_FIELDS.filter((f) => f.pageNumber === pageIndex);
 
+        // DEBUG: Draw red dots at ALL field positions on this page
+        if (debugMode) {
+          for (const field of fieldsOnPage) {
+            // Main position
+            const dx = field.x * scale;
+            const dy = (baseViewport.height - field.y) * scale;
+            ctx.beginPath();
+            ctx.arc(dx, dy, 3 * scale, 0, Math.PI * 2);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.font = `${7 * scale}px monospace`;
+            ctx.fillStyle = "red";
+            ctx.fillText(`${field.id}(${field.x},${field.y})`, dx + 4 * scale, dy - 2 * scale);
+
+            // Tick positions
+            if (field.tickPositions) {
+              for (const [opt, pos] of Object.entries(field.tickPositions)) {
+                const tx = pos.x * scale;
+                const ty = (baseViewport.height - pos.y) * scale;
+                ctx.beginPath();
+                ctx.arc(tx, ty, 2.5 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = "blue";
+                ctx.fill();
+                ctx.font = `${6 * scale}px monospace`;
+                ctx.fillStyle = "blue";
+                ctx.fillText(opt, tx + 3 * scale, ty - 1 * scale);
+              }
+            }
+
+            // Date boxes
+            if (field.dateBoxes) {
+              const db = field.dateBoxes;
+              for (const [lbl, bx, by] of [["DD", db.ddX, db.ddY], ["MM", db.mmX, db.mmY], ["YY", db.yyyyX, db.yyyyY]] as [string, number, number][]) {
+                const sx = bx * scale;
+                const sy = (baseViewport.height - by) * scale;
+                ctx.beginPath();
+                ctx.arc(sx, sy, 2 * scale, 0, Math.PI * 2);
+                ctx.fillStyle = "orange";
+                ctx.fill();
+                ctx.font = `${6 * scale}px monospace`;
+                ctx.fillStyle = "orange";
+                ctx.fillText(lbl, sx + 3 * scale, sy - 1 * scale);
+              }
+            }
+          }
+        }
+
+        // Overlay answer values
         for (const field of fieldsOnPage) {
           const value = data[field.id];
           if (!value || value.toLowerCase() === "none" || value.toLowerCase() === "skip") continue;
@@ -130,8 +194,8 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
           if (field.tickPositions && field.tickPositions[value]) {
             const pos = field.tickPositions[value];
             const x = pos.x * scale;
-            const y = (baseViewport.height - (pos.y + Y_OFFSET)) * scale;
-            console.log(`Placing tick [${value}] at page ${pageNum}, x=${pos.x}, y=${pos.y + Y_OFFSET} (field: ${field.id})`);
+            const y = (baseViewport.height - pos.y) * scale;
+            console.log(`Placing tick [${value}] at page ${pageNum}, x=${pos.x}, y=${pos.y} (field: ${field.id})`);
 
             if (isHighlighted) {
               ctx.fillStyle = "rgba(34, 197, 94, 0.25)";
@@ -159,7 +223,7 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
               ctx.fillStyle = isHighlighted ? "#16a34a" : "#000000";
               for (const p of positions) {
                 const sx = p.x * scale;
-                const sy = (baseViewport.height - (p.y + Y_OFFSET)) * scale;
+                const sy = (baseViewport.height - p.y) * scale;
                 if (isHighlighted) {
                   ctx.save();
                   ctx.fillStyle = "rgba(34, 197, 94, 0.25)";
@@ -169,16 +233,16 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
                 }
                 ctx.fillText(p.text, sx, sy);
               }
-              console.log(`Placing date [${value}] at page ${pageNum}, x=${boxes.ddX}, y=${boxes.ddY + Y_OFFSET} (field: ${field.id})`);
+              console.log(`Placing date [${value}] at page ${pageNum}, x=${boxes.ddX}, y=${boxes.ddY} (field: ${field.id})`);
               ctx.fillStyle = "#000000";
               continue;
             }
           }
 
-          // Regular text
+          // Regular text — NO Y_OFFSET, direct coordinates
           const x = field.x * scale;
-          const y = (baseViewport.height - (field.y + Y_OFFSET)) * scale;
-          console.log(`Placing [${value}] at page ${pageNum}, x=${field.x}, y=${field.y + Y_OFFSET} (field: ${field.id})`);
+          const y = (baseViewport.height - field.y) * scale;
+          console.log(`Placing [${value}] at page ${pageNum}, x=${field.x}, y=${field.y} (field: ${field.id})`);
 
           ctx.font = `${10 * scale}px Helvetica, Arial, sans-serif`;
           ctx.fillStyle = isHighlighted ? "#16a34a" : "#000000";
@@ -238,25 +302,23 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
         renderPages();
       }
     }
-  }, [answers]);
+  }, [answers, debugMode]);
 
-  // Re-render immediately when answers change
+  // Re-render when answers or debug mode change
   useEffect(() => {
     if (!canvasMode || !initialized) return;
     renderPages();
-  }, [answers, canvasMode, initialized, renderPages]);
+  }, [answers, canvasMode, initialized, renderPages, debugMode]);
 
-  // Scroll to field + highlight, then clear highlight after delay
+  // Scroll to field + highlight
   useEffect(() => {
     if (!scrollToField || !containerRef.current) return;
     highlightFieldRef.current = scrollToField;
-    // Trigger re-render with highlight
     renderPages();
 
     const field = SA466_FIELDS.find(f => f.id === scrollToField);
     if (field) {
       const pageNum = field.pageNumber + 1;
-      // Small delay to let canvas render first
       setTimeout(() => {
         const canvas = canvasRefs.current.get(pageNum);
         if (canvas) {
@@ -265,7 +327,6 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
       }, 100);
     }
 
-    // Clear highlight after 2 seconds and re-render
     const timer = setTimeout(() => {
       highlightFieldRef.current = null;
       renderPages();
@@ -303,20 +364,37 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full overflow-auto rounded-xl border border-border bg-white p-2"
-    >
-      {!initialized && (
-        <div className="flex h-full items-center justify-center p-8">
-          <div className="text-center">
-            <span className="text-4xl">📄</span>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Your form preview will appear here as Luma fills in each field
-            </p>
+    <div className="h-full w-full flex flex-col overflow-hidden rounded-xl border border-border bg-white">
+      {/* Debug toggle */}
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border bg-muted/30">
+        <span className="text-[10px] font-mono text-muted-foreground">
+          {filledFields.length} fields placed
+        </span>
+        <label className="flex items-center gap-1.5 cursor-pointer">
+          <span className="text-[10px] font-mono text-muted-foreground">Debug dots</span>
+          <input
+            type="checkbox"
+            checked={debugMode}
+            onChange={(e) => setDebugMode(e.target.checked)}
+            className="h-3 w-3 accent-destructive"
+          />
+        </label>
+      </div>
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-auto p-2"
+      >
+        {!initialized && (
+          <div className="flex h-full items-center justify-center p-8">
+            <div className="text-center">
+              <span className="text-4xl">📄</span>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Your form preview will appear here as Luma fills in each field
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
