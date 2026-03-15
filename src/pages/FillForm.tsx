@@ -146,9 +146,31 @@ const FillForm = () => {
     doDownload();
   };
 
+  const fallbackHtmlPrint = (previewEl: HTMLElement) => {
+    console.log("Falling back to HTML print in new tab");
+    try {
+      const htmlContent = previewEl.innerHTML;
+      const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        .map(el => el.outerHTML).join("\n");
+      const blob = new Blob([`<!DOCTYPE html><html><head><meta charset="utf-8">${styles}<style>body{margin:0;padding:20px;background:#fff;}</style></head><body>${htmlContent}</body></html>`], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, "_blank");
+      if (win) {
+        win.onload = () => { win.print(); URL.revokeObjectURL(url); };
+      } else {
+        toast.error("Please allow popups to download your form.");
+      }
+    } catch (fallbackErr) {
+      console.error("Fallback print also failed:", fallbackErr);
+      toast.error("Could not generate PDF. Please try a different browser.");
+    }
+  };
+
   const doDownload = async () => {
     setIsGenerating(true);
     console.log("Starting PDF generation");
+    console.log("html2canvas available:", typeof html2canvas);
+    console.log("jsPDF available:", typeof jsPDF);
 
     const timeoutId = setTimeout(() => {
       console.error("PDF generation timed out after 15s");
@@ -158,8 +180,10 @@ const FillForm = () => {
 
     try {
       const previewEl = document.getElementById("form-preview-panel");
+      console.log("Preview element found:", !!previewEl);
       if (!previewEl) {
-        console.error("PDF: Form preview panel not found");
+        console.error("PDF: Form preview panel not found. Available IDs:", 
+          Array.from(document.querySelectorAll("[id]")).map(el => el.id).join(", "));
         clearTimeout(timeoutId);
         setIsGenerating(false);
         toast.error("Could not find form preview. Please try again.");
@@ -186,49 +210,65 @@ const FillForm = () => {
       const A4_W = 210; // mm
       const A4_H = 297; // mm
 
-      console.log(`Capturing ${pages.length} form pages`);
+      console.log(`Found ${pages.length} .sa466-page elements`);
 
       const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-      for (let i = 0; i < pages.length; i++) {
-        console.log(`Capturing page ${i + 1} of ${pages.length}`);
-        const page = pages[i] as HTMLElement;
+      if (pages.length > 0) {
+        for (let i = 0; i < pages.length; i++) {
+          console.log(`Capturing page ${i + 1} of ${pages.length}`);
+          const page = pages[i] as HTMLElement;
 
-        const canvas = await html2canvas(page, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: "#ffffff",
-          windowWidth: page.scrollWidth,
-          windowHeight: page.scrollHeight,
-        });
+          const canvas = await html2canvas(page, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            logging: true,
+            backgroundColor: "#ffffff",
+          });
 
-        const imgData = canvas.toDataURL("image/png");
+          console.log(`Page ${i + 1} canvas size: ${canvas.width}x${canvas.height}`);
+          const imgData = canvas.toDataURL("image/png");
 
-        if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, 0, A4_W, A4_H);
-      }
-
-      // If no .sa466-page found, capture the whole panel as fallback
-      if (pages.length === 0) {
-        console.log("No pages found, capturing entire panel");
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, 0, A4_W, A4_H);
+        }
+      } else {
+        // No .sa466-page found, capture the whole panel
+        console.log("No .sa466-page elements, capturing entire panel");
+        console.log(`Panel size: ${previewEl.scrollWidth}x${previewEl.scrollHeight}`);
+        
         const canvas = await html2canvas(previewEl, {
           scale: 2,
           useCORS: true,
-          logging: false,
+          allowTaint: true,
+          logging: true,
           backgroundColor: "#ffffff",
         });
+
+        console.log(`Full panel canvas: ${canvas.width}x${canvas.height}`);
         const imgData = canvas.toDataURL("image/png");
         const pxW = canvas.width;
         const pxH = canvas.height;
-        const pdfH = (pxH * A4_W) / pxW;
-        pdf.addImage(imgData, "PNG", 0, 0, A4_W, pdfH);
+        const pdfW = A4_W;
+        const pdfH = (pxH * pdfW) / pxW;
+        
+        // Handle multi-page if content is taller than A4
+        let yOffset = 0;
+        let pageNum = 0;
+        while (yOffset < pdfH) {
+          if (pageNum > 0) pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, -yOffset, pdfW, pdfH);
+          yOffset += A4_H;
+          pageNum++;
+        }
       }
 
-      console.log("Converting to PDF");
       const today = new Date().toLocaleDateString("en-AU").replace(/\//g, "-");
-      pdf.save(`SA466-DSP-completed-${today}.pdf`);
-      console.log("PDF ready — downloading");
+      const filename = `SA466-DSP-completed-${today}.pdf`;
+      console.log(`Saving PDF as ${filename}`);
+      pdf.save(filename);
+      console.log("PDF download triggered successfully");
 
       // Restore signature pad & highlights
       interactiveEls.forEach(el => (el as HTMLElement).style.display = "");
@@ -243,11 +283,20 @@ const FillForm = () => {
       clearSession(slug);
       setIsGenerating(false);
       setDownloadComplete(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error("PDF generation error:", err);
+      console.error("Error name:", err?.name);
+      console.error("Error message:", err?.message);
+      console.error("Error stack:", err?.stack);
       clearTimeout(timeoutId);
+      
+      // Fallback: open HTML in new tab for printing
+      const previewEl = document.getElementById("form-preview-panel");
+      if (previewEl) {
+        fallbackHtmlPrint(previewEl);
+      }
+      
       setIsGenerating(false);
-      toast.error("PDF generation failed. Please try again.");
     }
   };
 
