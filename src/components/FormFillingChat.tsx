@@ -93,20 +93,28 @@ function shouldSkipField(field: SA466Field, answers: Record<string, string>): bo
 }
 
 /**
- * Get the ordered list of question numbers to ask, applying skip logic.
+ * Get the ordered list of question fields, applying skip logic.
+ * No longer filters out answered fields — we use findFirstUnanswered to skip them.
  */
 function getActiveFields(answers: Record<string, string>, prefilled?: Record<string, string>): SA466Field[] {
+  const merged = { ...prefilled, ...answers };
   return SA466_FIELDS.filter(f => {
-    // Skip the final confirmation pseudo-field
     if (f.id === "declarationComplete") return false;
-    // Skip signature — it's a notice, not a real input
     if (f.id === "declarationSignature") return false;
-    // Skip already prefilled
-    if (prefilled?.[f.id]) return false;
-    // Apply skip logic
-    if (shouldSkipField(f, { ...prefilled, ...answers })) return false;
+    if (shouldSkipField(f, merged)) return false;
     return true;
   });
+}
+
+/**
+ * Find the index of the first unanswered field in the active fields list.
+ */
+function findFirstUnanswered(fields: SA466Field[], answers: Record<string, string>): number {
+  for (let i = 0; i < fields.length; i++) {
+    const v = answers[fields[i].id];
+    if (!v || v.trim() === "") return i;
+  }
+  return fields.length;
 }
 
 function getCurrentSection(questionNumber: number): string {
