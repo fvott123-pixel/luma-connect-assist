@@ -479,14 +479,20 @@ const PrepareForm = () => {
 
             {/* Download official form */}
             {officialLink && officialLink.type === "url" && (
-              <a href={officialLink.value} target="_blank" rel="noopener noreferrer" className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10">
+              <a
+                href={officialLink.path.startsWith("http") ? officialLink.path : `${window.location.origin}${officialLink.path}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10"
+                onClick={() => console.log("Fetching PDF from:", officialLink.path.startsWith("http") ? officialLink.path : `${window.location.origin}${officialLink.path}`)}
+              >
                 📥 {t("prepare.downloadOfficial")}
               </a>
             )}
             {officialLink && officialLink.type === "phone" && (
               <div className="rounded-2xl border border-border bg-card p-4 text-center space-y-2">
                 <p className="text-sm text-foreground">{t("prepare.agedCareCall")}</p>
-                <p className="text-xl font-bold text-primary">{officialLink.value}</p>
+                <p className="text-xl font-bold text-primary">{officialLink.path}</p>
                 <button onClick={copyPhone} className="rounded-xl border border-primary bg-card px-5 py-2 text-sm font-bold text-primary hover:bg-primary/10 transition-colors">
                   📋 {t("prepare.copyNumber")}
                 </button>
