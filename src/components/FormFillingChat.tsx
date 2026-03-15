@@ -220,9 +220,11 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   }, []);
 
   function getButtonsForField(field: SA466Field) {
-    if (field.signatureNotice) return undefined; // signature is a notice
+    if (field.signatureNotice) return undefined;
     if (field.fieldType === "select" && field.options) {
       return field.options.map(o => ({ label: o, value: o }));
+    }
+    return undefined;
   }
 
   /** Translate a non-English answer to English via edge function */
@@ -242,8 +244,6 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     } catch {
       return text;
     }
-  }
-    return undefined;
   }
 
   // Correction phrases detection — match anywhere in the input, not just exact match
