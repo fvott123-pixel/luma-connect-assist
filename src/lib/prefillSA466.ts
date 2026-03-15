@@ -53,6 +53,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
   const fontSize = 10;
   const color = rgb(0, 0, 0);
   const pages = pdfDoc.getPages();
+  const Y_OFFSET = -20; // Adjust coordinates down to align with form boxes
 
   for (const field of SA466_FIELDS) {
     const value = data[field.id];
@@ -67,7 +68,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
       const pos = field.tickPositions[value];
       page.drawText("✓", {
         x: pos.x,
-        y: pos.y,
+        y: pos.y + Y_OFFSET,
         size: 12,
         font: fontBold,
         color,
@@ -80,9 +81,9 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
       const parts = parseDateParts(value);
       if (parts) {
         const boxes = field.dateBoxes;
-        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
-        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
-        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
+        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY + Y_OFFSET, size: fontSize, font, color });
+        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY + Y_OFFSET, size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY + Y_OFFSET, size: fontSize, font, color });
         continue;
       }
     }
@@ -90,7 +91,7 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
     // Regular text
     page.drawText(value, {
       x: field.x,
-      y: field.y,
+      y: field.y + Y_OFFSET,
       size: fontSize,
       font,
       color,
