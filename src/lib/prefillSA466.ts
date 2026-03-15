@@ -99,6 +99,27 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     });
   }
 
+  // Embed signature if provided
+  if (signatureDataUrl) {
+    try {
+      const sigResponse = await fetch(signatureDataUrl);
+      const sigBytes = new Uint8Array(await sigResponse.arrayBuffer());
+      const sigImage = await pdfDoc.embedPng(sigBytes);
+      const sigPage = pages[33]; // Declaration page
+      if (sigPage) {
+        const sigDims = sigImage.scale(0.3);
+        sigPage.drawImage(sigImage, {
+          x: 130,
+          y: 220 + Y_OFFSET,
+          width: Math.min(sigDims.width, 200),
+          height: Math.min(sigDims.height, 50),
+        });
+      }
+    } catch (err) {
+      console.warn("Could not embed signature:", err);
+    }
+  }
+
   return pdfDoc.save();
 }
 
