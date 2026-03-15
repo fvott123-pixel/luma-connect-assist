@@ -1,11 +1,14 @@
 import { useRef, useEffect } from "react";
+import SignaturePad from "./SignaturePad";
 
 interface SA466FormPreviewProps {
   answers: Record<string, string>;
   scrollToField?: string | null;
+  onSignatureChange?: (dataUrl: string | null) => void;
+  signatureDataUrl?: string | null;
 }
 
-const SA466FormPreview = ({ answers, scrollToField }: SA466FormPreviewProps) => {
+const SA466FormPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUrl }: SA466FormPreviewProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const fieldRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
@@ -409,9 +412,20 @@ const SA466FormPreview = ({ answers, scrollToField }: SA466FormPreviewProps) => 
               <span className="text-[9px] font-bold text-gray-700">71</span>
               <span className="text-[9px] font-semibold text-gray-700">Your signature</span>
             </div>
-            <div className="ml-3 h-[40px] border-b-2 border-gray-600 flex items-end">
-              <span className="text-[9px] text-gray-400 italic mb-1">✍️ Sign here after printing</span>
+            <div className="ml-3 print:hidden">
+              <SignaturePad onSignatureChange={onSignatureChange || (() => {})} initialSignature={signatureDataUrl} />
             </div>
+            {/* Print version: show the signature image */}
+            {signatureDataUrl && (
+              <div className="ml-3 hidden print:block h-[60px]">
+                <img src={signatureDataUrl} alt="Signature" className="h-full object-contain" />
+              </div>
+            )}
+            {!signatureDataUrl && (
+              <div className="ml-3 hidden print:block h-[40px] border-b-2 border-gray-600 flex items-end">
+                <span className="text-[9px] text-gray-400 italic mb-1">✍️ Sign here</span>
+              </div>
+            )}
           </div>
         </PageWrap>
 

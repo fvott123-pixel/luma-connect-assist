@@ -22,7 +22,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
  * Fill in SA466 DSP form PDF with collected answers at their mapped coordinates.
  * Handles text, tick marks, and split date fields.
  */
-export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
+export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
   const origin = window.location.origin;
   const paths = [
     `${origin}/forms/DSP/sa466en.pdf`,
@@ -97,6 +97,27 @@ export async function prefillSA466(data: SA466FormData): Promise<Uint8Array> {
       color,
       maxWidth: field.maxWidth,
     });
+  }
+
+  // Embed signature if provided
+  if (signatureDataUrl) {
+    try {
+      const sigResponse = await fetch(signatureDataUrl);
+      const sigBytes = new Uint8Array(await sigResponse.arrayBuffer());
+      const sigImage = await pdfDoc.embedPng(sigBytes);
+      const sigPage = pages[33]; // Declaration page
+      if (sigPage) {
+        const sigDims = sigImage.scale(0.3);
+        sigPage.drawImage(sigImage, {
+          x: 130,
+          y: 220 + Y_OFFSET,
+          width: Math.min(sigDims.width, 200),
+          height: Math.min(sigDims.height, 50),
+        });
+      }
+    } catch (err) {
+      console.warn("Could not embed signature:", err);
+    }
   }
 
   return pdfDoc.save();

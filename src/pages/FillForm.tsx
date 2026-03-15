@@ -6,6 +6,7 @@ import Footer from "@/components/landing/Footer";
 import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
+import FieldReviewModal, { getSuspiciousFields } from "@/components/FieldReviewModal";
 import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
@@ -29,6 +30,8 @@ const FillForm = () => {
   const [resumedSession, setResumedSession] = useState<FormSession | null>(null);
   const [recoveryCode, setRecoveryCode] = useState("");
   const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [showReview, setShowReview] = useState(false);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
@@ -139,14 +142,25 @@ const FillForm = () => {
     setPhase("filling");
   };
 
-  const handleDownload = async () => {
+  const handleDownloadClick = () => {
+    // Check for suspicious fields first
+    const issues = getSuspiciousFields(answers);
+    if (issues.length > 0) {
+      setShowReview(true);
+      return;
+    }
+    doDownload();
+  };
+
+  const doDownload = async () => {
+    setShowReview(false);
     setIsGenerating(true);
     try {
       const data = { ...answers };
       if (data.postalAddress?.toLowerCase() === "same" || data.postalAddress?.toLowerCase() === "yes") {
         data.postalAddress = data.permanentAddress || "";
       }
-      const pdfBytes = await prefillSA466(data);
+      const pdfBytes = await prefillSA466(data, signatureDataUrl);
       const today = new Date().toLocaleDateString("en-AU");
       downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
       clearSession(slug);
@@ -188,7 +202,7 @@ const FillForm = () => {
           </button>
           {isComplete && (
             <button
-              onClick={handleDownload}
+              onClick={handleDownloadClick}
               disabled={isGenerating}
               className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
             >
@@ -220,7 +234,7 @@ const FillForm = () => {
             />
           </div>
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
-            <PdfPreview answers={answers} scrollToField={lastAnsweredField} />
+            <PdfPreview answers={answers} scrollToField={lastAnsweredField} onSignatureChange={setSignatureDataUrl} signatureDataUrl={signatureDataUrl} />
           </div>
         </div>
 
@@ -232,6 +246,17 @@ const FillForm = () => {
         </div>
       </main>
       <Footer />
+      {showReview && (
+        <FieldReviewModal
+          answers={answers}
+          onConfirm={doDownload}
+          onFixField={(fieldId) => {
+            setShowReview(false);
+            setLastAnsweredField(fieldId);
+            toast.info(`Please update the "${fieldId}" field in the chat.`);
+          }}
+        />
+      )}
     </div>
   );
 };
