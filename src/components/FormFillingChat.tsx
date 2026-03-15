@@ -474,7 +474,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       }
 
       const langName = LANG_NAMES[lang] || "English";
-      const prompt = `The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
+      const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}. Translate the question and explanation into ${langName}.` : "";
+      const prompt = `${langInstruction} The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
 
       const buttons = getButtonsForField(nextField);
       let text = "";
