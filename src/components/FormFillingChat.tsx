@@ -70,6 +70,9 @@ interface FormFillingChatProps {
   onAnswersChange?: (answers: Record<string, string>) => void;
   onComplete?: () => void;
   onFieldAnswered?: (fieldId: string) => void;
+  resumedAnswers?: Record<string, string>;
+  resumedFieldIndex?: number;
+  onSaveAndExit?: () => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
