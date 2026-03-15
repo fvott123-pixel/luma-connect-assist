@@ -246,6 +246,17 @@ const FillForm = () => {
         </div>
       </main>
       <Footer />
+      {showReview && (
+        <FieldReviewModal
+          answers={answers}
+          onConfirm={doDownload}
+          onFixField={(fieldId) => {
+            setShowReview(false);
+            setLastAnsweredField(fieldId);
+            toast.info(`Please update the "${fieldId}" field in the chat.`);
+          }}
+        />
+      )}
     </div>
   );
 };
