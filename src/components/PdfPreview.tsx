@@ -169,6 +169,18 @@ const PdfPreview = ({ answers, scrollToField }: PdfPreviewProps) => {
     }
   }, [answers]);
 
+  // Scroll to the canvas containing the last answered field
+  useEffect(() => {
+    if (!scrollToField || !containerRef.current) return;
+    const field = SA466_FIELDS.find(f => f.id === scrollToField);
+    if (!field) return;
+    const pageNum = field.pageNumber + 1;
+    const canvas = canvasRefs.current.get(pageNum);
+    if (canvas) {
+      canvas.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [scrollToField, answers]);
+
   useEffect(() => {
     if (!canvasMode || !initialized) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
