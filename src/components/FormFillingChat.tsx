@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { SA466_FIELDS, type FormField } from "@/lib/sa466FormFields";
+import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa466Fields";
 
 type Msg = {
   role: "user" | "assistant";
@@ -74,6 +74,37 @@ const LANG_NAMES: Record<string, string> = {
   EN: "English", AR: "Arabic", NP: "Nepali", IT: "Italian", VN: "Vietnamese",
 };
 
+/**
+ * Determine whether a field should be skipped based on skip logic and current answers.
+ */
+function shouldSkipField(field: SA466Field, answers: Record<string, string>): boolean {
+  if (!field.skipIf) return false;
+  const depValue = answers[field.skipIf.field];
+  return depValue?.toLowerCase() === field.skipIf.equals.toLowerCase();
+}
+
+/**
+ * Get the ordered list of question numbers to ask, applying skip logic.
+ */
+function getActiveFields(answers: Record<string, string>, prefilled?: Record<string, string>): SA466Field[] {
+  return SA466_FIELDS.filter(f => {
+    // Skip the final confirmation pseudo-field
+    if (f.id === "declarationComplete") return false;
+    // Skip signature — it's a notice, not a real input
+    if (f.id === "declarationSignature") return false;
+    // Skip already prefilled
+    if (prefilled?.[f.id]) return false;
+    // Apply skip logic
+    if (shouldSkipField(f, { ...prefilled, ...answers })) return false;
+    return true;
+  });
+}
+
+function getCurrentSection(questionNumber: number): string {
+  const sec = SA466_SECTIONS.find(s => questionNumber >= s.startQ && questionNumber <= s.endQ);
+  return sec?.title || "";
+}
+
 const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }: FormFillingChatProps) => {
   const { lang, dir } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -87,19 +118,17 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoice);
   const [input, setInput] = useState("");
   const initRef = useRef(false);
+  const [fieldIndex, setFieldIndex] = useState(0);
 
-  const fields = SA466_FIELDS;
-
-  // Find first unanswered field
-  const findFirstUnanswered = useCallback(() => {
-    for (let i = 0; i < fields.length; i++) {
-      if (!prefilled?.[fields[i].id]) return i;
-    }
-    return fields.length; // all answered
-  }, [prefilled, fields]);
-
-  const [fieldIndex, setFieldIndex] = useState(() => findFirstUnanswered());
-  const currentField = fields[fieldIndex] as FormField | undefined;
+  // Active fields — recalculated whenever answers change
+  const activeFields = getActiveFields(answers, prefilled);
+  const currentField = activeFields[fieldIndex] as SA466Field | undefined;
+  const totalQuestions = SA466_FIELDS.filter(f => f.id !== "declarationComplete" && f.id !== "declarationSignature").length;
+  const answeredCount = Object.keys(answers).filter(k => {
+    const v = answers[k];
+    return v && v.toLowerCase() !== "none" && v.toLowerCase() !== "skip";
+  }).length;
+  const progress = Math.round((answeredCount / totalQuestions) * 100);
 
   // Notify parent of answer changes
   useEffect(() => {
@@ -125,34 +154,24 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
     if (initRef.current) return;
     initRef.current = true;
 
-    const startIdx = findFirstUnanswered();
-    setFieldIndex(startIdx);
-
-    if (startIdx >= fields.length) {
-      // All pre-filled
+    const fields = getActiveFields({}, prefilled);
+    if (fields.length === 0) {
       setMessages([{ role: "assistant", content: "All your details have been filled from your ID! 🎉 Your form is ready to download." }]);
       setIsComplete(true);
       onComplete?.();
       return;
     }
 
-    const field = fields[startIdx];
+    const field = fields[0];
     const prefilledCount = Object.keys(prefilled || {}).length;
     const langName = LANG_NAMES[lang] || "English";
+    const sectionTitle = getCurrentSection(field.questionNumber);
 
-    const greeting = prefilledCount > 0
-      ? `I've filled in ${prefilledCount} fields from your ID! ✨ I just need a few more details. Let's start with your "${field.label}".`
-      : `Let's fill out your Disability Support Pension form together! I'll ask one question at a time. First up — your "${field.label}".`;
-
-    const prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll ask questions one at a time,"} then ask for their "${field.label}". ${field.type === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
+    const prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll guide them through the form one question at a time in simple language,"} then ask the first question. Section: "${sectionTitle}". Question: "${field.lumaQuestion}" ${field.lumaExplanation ? `Explanation to include: "${field.lumaExplanation}"` : ""} ${field.fieldType === "select" ? `Options: ${field.options?.join(", ")}` : ""} ${field.signatureNotice ? `IMPORTANT NOTICE: "${field.signatureNotice}"` : ""} Keep it to 2-3 short sentences.`;
 
     setIsLoading(true);
     let text = "";
-    const buttons = field.type === "select" && field.options
-      ? field.options.map(o => ({ label: o, value: o }))
-      : field.type === "yesno"
-        ? [{ label: "Yes", value: "Yes" }, { label: "No", value: "No" }]
-        : undefined;
+    const buttons = getButtonsForField(field);
 
     streamResponse({
       messages: [{ role: "user", content: prompt }],
@@ -165,76 +184,93 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
         setIsLoading(false);
       },
       onError: () => {
-        setMessages([{ role: "assistant", content: greeting, buttons }]);
+        const fallback = field.lumaExplanation
+          ? `${field.lumaExplanation}\n\n${field.lumaQuestion}`
+          : field.lumaQuestion;
+        setMessages([{ role: "assistant", content: fallback, buttons }]);
         setIsLoading(false);
       },
     });
   }, []);
+
+  function getButtonsForField(field: SA466Field) {
+    if (field.signatureNotice) return undefined; // signature is a notice
+    if (field.fieldType === "select" && field.options) {
+      return field.options.map(o => ({ label: o, value: o }));
+    }
+    return undefined;
+  }
 
   const processAnswer = (answerText: string) => {
     if (!currentField || isLoading || isComplete) return;
     const cleanAnswer = answerText.trim();
     if (!cleanAnswer) return;
 
+    // Handle signature notice — just move forward
+    if (currentField.signatureNotice) {
+      advanceToNext(cleanAnswer);
+      return;
+    }
+
     const newAnswers = { ...answers, [currentField.id]: cleanAnswer };
     setAnswers(newAnswers);
-
-    // Find next unanswered field
-    let nextIdx = fieldIndex + 1;
-    while (nextIdx < fields.length && newAnswers[fields[nextIdx].id]) {
-      nextIdx++;
-    }
-    const isLast = nextIdx >= fields.length;
-
     setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
     setIsLoading(true);
     setInput("");
 
-    if (isLast) {
-      const langName = LANG_NAMES[lang] || "English";
-      const prompt = `The user has finished all questions for their DSP form. Congratulate them warmly in ${langName}. Tell them their form is complete and ready to download — they can see it in the preview. Keep it to 2-3 sentences.`;
+    // Recalculate active fields with new answers
+    const updatedActive = getActiveFields(newAnswers, prefilled);
+    const nextIdx = fieldIndex + 1;
 
-      let text = "";
-      streamResponse({
-        messages: [
-          ...messages.filter(m => !m.buttons).map(m => ({ role: m.role, content: m.content })).slice(-4),
-          { role: "user", content: cleanAnswer },
-          { role: "user", content: prompt },
-        ],
-        onDelta: (chunk) => {
-          text += chunk;
-          setMessages(prev => {
-            const last = prev[prev.length - 1];
-            if (last?.role === "assistant" && prev.length > messages.length + 1) {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text } : m);
-            }
-            return [...prev, { role: "assistant", content: text }];
-          });
-        },
-        onDone: () => {
-          setIsLoading(false);
-          setIsComplete(true);
-          onComplete?.();
-        },
-        onError: () => {
-          setMessages(prev => [...prev, { role: "assistant", content: "🎉 Your form is complete! You can see it in the preview and download it when you're ready." }]);
-          setIsLoading(false);
-          setIsComplete(true);
-          onComplete?.();
-        },
-      });
+    if (nextIdx >= updatedActive.length) {
+      // Show signature notice then complete
+      finishForm(newAnswers, cleanAnswer);
     } else {
-      const nextField = fields[nextIdx];
+      const nextField = updatedActive[nextIdx];
+
+      // Check if we're entering a new section
+      const currentSection = getCurrentSection(currentField.questionNumber);
+      const nextSection = getCurrentSection(nextField.questionNumber);
+      const sectionChange = currentSection !== nextSection ? `\n\nYou're now starting a new section: "${nextSection}".` : "";
+
+      if (nextField.signatureNotice) {
+        // Signature notice — tell user and auto-advance
+        let text = "";
+        const prompt = `The user finished all data questions. Tell them warmly in ${LANG_NAMES[lang] || "English"}: "${nextField.signatureNotice}" Then say you'll now finish up. Keep it to 2 sentences.`;
+        streamResponse({
+          messages: [{ role: "user", content: prompt }],
+          onDelta: (chunk) => {
+            text += chunk;
+            setMessages(prev => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && prev.length > messages.length + 1) {
+                return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text } : m);
+              }
+              return [...prev, { role: "assistant", content: text }];
+            });
+          },
+          onDone: () => {
+            setFieldIndex(nextIdx);
+            setIsLoading(false);
+            // Auto-advance past signature
+            setTimeout(() => finishForm(newAnswers, "acknowledged"), 1500);
+          },
+          onError: () => {
+            setMessages(prev => [...prev, { role: "assistant", content: `✍️ ${nextField.signatureNotice}` }]);
+            setFieldIndex(nextIdx);
+            setIsLoading(false);
+            setTimeout(() => finishForm(newAnswers, "acknowledged"), 1500);
+          },
+        });
+        return;
+      }
+
       const langName = LANG_NAMES[lang] || "English";
-      const prompt = `The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}, then ask for their "${nextField.label}". ${nextField.type === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" if not applicable.' : ""} Keep it to 1-2 short sentences.`;
+      const prompt = `The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
 
-      const buttons = nextField.type === "select" && nextField.options
-        ? nextField.options.map(o => ({ label: o, value: o }))
-        : nextField.type === "yesno"
-          ? [{ label: "Yes", value: "Yes" }, { label: "No", value: "No" }]
-          : undefined;
-
+      const buttons = getButtonsForField(nextField);
       let text = "";
+
       streamResponse({
         messages: [
           ...messages.filter(m => !m.buttons).map(m => ({ role: m.role, content: m.content })).slice(-6),
@@ -255,12 +291,62 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
           setIsLoading(false);
         },
         onError: () => {
-          setMessages(prev => [...prev, { role: "assistant", content: `${currentField.acknowledgment} ${nextField.question}`, buttons }]);
+          const fallback = nextField.lumaExplanation
+            ? `${nextField.lumaExplanation}\n\n${nextField.lumaQuestion}`
+            : nextField.lumaQuestion;
+          setMessages(prev => [...prev, { role: "assistant", content: fallback, buttons }]);
           setFieldIndex(nextIdx);
           setIsLoading(false);
         },
       });
     }
+  };
+
+  const advanceToNext = (text: string) => {
+    const newAnswers = { ...answers };
+    setMessages(prev => [...prev, { role: "user", content: text }]);
+    const updatedActive = getActiveFields(newAnswers, prefilled);
+    const nextIdx = fieldIndex + 1;
+    if (nextIdx >= updatedActive.length) {
+      finishForm(newAnswers, text);
+    } else {
+      setFieldIndex(nextIdx);
+    }
+  };
+
+  const finishForm = (finalAnswers: Record<string, string>, lastAnswer: string) => {
+    setIsLoading(true);
+    const langName = LANG_NAMES[lang] || "English";
+    const prompt = `The user has completed ALL questions for their SA466 Disability Support Pension form! Congratulate them warmly in ${langName}. Tell them: 1) Their form is complete and ready to download. 2) They need to print it and sign where indicated. 3) Post it to: Reply Paid 7800, Canberra BC ACT 2610. Keep it to 3 sentences.`;
+
+    let text = "";
+    streamResponse({
+      messages: [
+        ...messages.filter(m => !m.buttons).map(m => ({ role: m.role, content: m.content })).slice(-4),
+        { role: "user", content: prompt },
+      ],
+      onDelta: (chunk) => {
+        text += chunk;
+        setMessages(prev => {
+          const last = prev[prev.length - 1];
+          if (last?.role === "assistant" && prev.length > messages.length + 1) {
+            return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text } : m);
+          }
+          return [...prev, { role: "assistant", content: text }];
+        });
+      },
+      onDone: () => {
+        setIsLoading(false);
+        setIsComplete(true);
+        onComplete?.();
+      },
+      onError: () => {
+        setMessages(prev => [...prev, { role: "assistant", content: "🎉 Your form is complete! Download it, sign where marked, and post to: Reply Paid 7800, Canberra BC ACT 2610." }]);
+        setIsLoading(false);
+        setIsComplete(true);
+        onComplete?.();
+      },
+    });
   };
 
   const send = () => {
@@ -269,11 +355,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
     processAnswer(text);
   };
 
-  const answeredCount = Object.keys(answers).filter(k => {
-    const v = answers[k];
-    return v && v.toLowerCase() !== "none" && v.toLowerCase() !== "same";
-  }).length;
-  const progress = Math.round((answeredCount / fields.length) * 100);
+  const sectionTitle = currentField ? getCurrentSection(currentField.questionNumber) : "";
 
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card overflow-hidden h-full" dir={dir}>
@@ -301,10 +383,15 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
           style={{ width: `${isComplete ? 100 : progress}%` }}
         />
       </div>
-      <div className="px-4 py-1.5 text-[11px] text-muted-foreground text-center">
+      <div className="px-4 py-1.5 text-[11px] text-muted-foreground text-center space-y-0.5">
         {isComplete
-          ? "✅ All questions answered — your form is ready!"
-          : `${answeredCount} of ${fields.length} fields completed`
+          ? <span>✅ All questions answered — your form is ready!</span>
+          : (
+            <>
+              <div className="font-medium text-foreground/80">{sectionTitle}</div>
+              <div>{answeredCount} of {totalQuestions} questions complete</div>
+            </>
+          )
         }
       </div>
 
@@ -357,7 +444,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder={currentField?.type === "date" ? "DD/MM/YYYY" : "Type your answer…"}
+              placeholder={currentField?.fieldType === "date" ? "DD/MM/YYYY" : "Type your answer…"}
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               dir={lang === "AR" ? "rtl" : "ltr"}
               disabled={isLoading}
