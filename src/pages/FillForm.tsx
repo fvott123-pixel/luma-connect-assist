@@ -154,24 +154,83 @@ const FillForm = () => {
     doDownload();
   };
 
+  const printFallback = () => {
+    console.log("PDF: Using window.print() fallback");
+    // Add print CSS to hide everything except form preview
+    const style = document.createElement("style");
+    style.id = "print-pdf-style";
+    style.textContent = `
+      @media print {
+        body * { visibility: hidden !important; }
+        #form-preview-panel, #form-preview-panel * { visibility: visible !important; }
+        #form-preview-panel {
+          position: absolute !important; left: 0 !important; top: 0 !important;
+          width: 100% !important; overflow: visible !important; height: auto !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    window.print();
+    setTimeout(() => style.remove(), 1000);
+    setIsGenerating(false);
+    toast.success("Print dialog opened — save as PDF from there.");
+  };
+
   const doDownload = async () => {
     setShowReview(false);
     setIsGenerating(true);
-    try {
-      const data = { ...answers };
-      if (data.postalAddress?.toLowerCase() === "same" || data.postalAddress?.toLowerCase() === "yes") {
-        data.postalAddress = data.permanentAddress || "";
-      }
-      const pdfBytes = await prefillSA466(data, signatureDataUrl);
-      const today = new Date().toLocaleDateString("en-AU");
-      downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
-      clearSession(slug);
-      toast.success("Your completed form has been downloaded! 🎉 Saved session cleared.");
-    } catch (err) {
-      console.error("PDF error:", err);
-      toast.error("Could not generate PDF. Please try again.");
-    } finally {
+    console.log("Starting PDF generation");
+
+    // 30-second timeout
+    const timeoutId = setTimeout(() => {
+      console.error("PDF generation timed out after 30s");
       setIsGenerating(false);
+      toast.error("Something went wrong. Please try again.");
+    }, 30000);
+
+    try {
+      const previewEl = document.getElementById("form-preview-panel");
+      if (!previewEl) {
+        console.error("PDF: Form preview panel not found");
+        clearTimeout(timeoutId);
+        printFallback();
+        return;
+      }
+
+      console.log("Capturing HTML canvas");
+      const canvas = await html2canvas(previewEl, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: previewEl.scrollWidth,
+        windowHeight: previewEl.scrollHeight,
+      });
+
+      console.log("Converting to PDF");
+      const imgData = canvas.toDataURL("image/png");
+      const pxWidth = canvas.width;
+      const pxHeight = canvas.height;
+      // A4 width in mm
+      const pdfWidth = 210;
+      const pdfHeight = (pxHeight * pdfWidth) / pxWidth;
+
+      const pdf = new jsPDF({ orientation: pdfHeight > pdfWidth ? "portrait" : "landscape", unit: "mm", format: [pdfWidth, pdfHeight] });
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+
+      const today = new Date().toLocaleDateString("en-AU");
+      pdf.save(`SA466-DSP-prefilled-${today}.pdf`);
+      console.log("PDF ready — downloading");
+
+      clearTimeout(timeoutId);
+      clearSession(slug);
+      setIsGenerating(false);
+      toast.success("Your completed form has been downloaded! 🎉");
+    } catch (err) {
+      console.error("PDF html2canvas error:", err);
+      clearTimeout(timeoutId);
+      // Fallback to window.print()
+      printFallback();
     }
   };
 
