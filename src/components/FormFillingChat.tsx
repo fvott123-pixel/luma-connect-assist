@@ -3,8 +3,6 @@ import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useVoiceInput, useTTS } from "@/hooks/useSpeech";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SA466_FIELDS, type FormField } from "@/lib/sa466FormFields";
-import { prefillSA466, downloadPdf } from "@/lib/prefillSA466";
-import { toast } from "sonner";
 
 type Msg = {
   role: "user" | "assistant";
@@ -67,30 +65,46 @@ async function streamResponse({
 
 interface FormFillingChatProps {
   serviceSlug: string;
+  prefilled?: Record<string, string>;
+  onAnswersChange?: (answers: Record<string, string>) => void;
+  onComplete?: () => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
   EN: "English", AR: "Arabic", NP: "Nepali", IT: "Italian", VN: "Vietnamese",
 };
 
-const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
+const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete }: FormFillingChatProps) => {
   const { lang, dir } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
-  const [fieldIndex, setFieldIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [input, setInput] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>(prefilled || {});
   const [isLoading, setIsLoading] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastSpokenRef = useRef(-1);
   const { speak, muted, toggleMute } = useTTS();
   const handleVoice = useCallback((t: string) => setInput(t), []);
   const { listening, toggle: toggleMic, supported: micSupported } = useVoiceInput(handleVoice);
+  const [input, setInput] = useState("");
   const initRef = useRef(false);
 
-  const fields = SA466_FIELDS; // Currently only SA466; extend later
+  const fields = SA466_FIELDS;
+
+  // Find first unanswered field
+  const findFirstUnanswered = useCallback(() => {
+    for (let i = 0; i < fields.length; i++) {
+      if (!prefilled?.[fields[i].id]) return i;
+    }
+    return fields.length; // all answered
+  }, [prefilled, fields]);
+
+  const [fieldIndex, setFieldIndex] = useState(() => findFirstUnanswered());
   const currentField = fields[fieldIndex] as FormField | undefined;
+
+  // Notify parent of answer changes
+  useEffect(() => {
+    onAnswersChange?.(answers);
+  }, [answers, onAnswersChange]);
 
   // Scroll on new messages
   useEffect(() => {
@@ -106,14 +120,31 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
     }
   }, [messages, speak]);
 
-  // Init: ask Claude to greet and ask first question
+  // Init
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
-    const field = fields[0];
+    const startIdx = findFirstUnanswered();
+    setFieldIndex(startIdx);
+
+    if (startIdx >= fields.length) {
+      // All pre-filled
+      setMessages([{ role: "assistant", content: "All your details have been filled from your ID! 🎉 Your form is ready to download." }]);
+      setIsComplete(true);
+      onComplete?.();
+      return;
+    }
+
+    const field = fields[startIdx];
+    const prefilledCount = Object.keys(prefilled || {}).length;
     const langName = LANG_NAMES[lang] || "English";
-    const prompt = `The user wants to fill out their Disability Support Pension (SA466) form. Greet them warmly in ${langName}, explain you'll ask questions one at a time, then ask for their "${field.label}". ${field.type === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
+
+    const greeting = prefilledCount > 0
+      ? `I've filled in ${prefilledCount} fields from your ID! ✨ I just need a few more details. Let's start with your "${field.label}".`
+      : `Let's fill out your Disability Support Pension form together! I'll ask one question at a time. First up — your "${field.label}".`;
+
+    const prompt = `The user wants to fill out their DSP (SA466) form. ${prefilledCount > 0 ? `${prefilledCount} fields were already pre-filled from their ID scan.` : ""} Greet them warmly in ${langName}, ${prefilledCount > 0 ? `tell them you've pre-filled ${prefilledCount} fields and just need a few more details,` : "explain you'll ask questions one at a time,"} then ask for their "${field.label}". ${field.type === "select" ? `Options: ${field.options?.join(", ")}` : ""} Keep it to 2-3 short sentences.`;
 
     setIsLoading(true);
     let text = "";
@@ -133,9 +164,8 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
         setMessages([{ role: "assistant", content: text, buttons }]);
         setIsLoading(false);
       },
-      onError: (err) => {
-        // Fallback to pre-written question
-        setMessages([{ role: "assistant", content: `Hi! I'm Luma ✨ Let's fill out your DSP form together.\n\n${field.question}`, buttons }]);
+      onError: () => {
+        setMessages([{ role: "assistant", content: greeting, buttons }]);
         setIsLoading(false);
       },
     });
@@ -143,38 +173,37 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
 
   const processAnswer = (answerText: string) => {
     if (!currentField || isLoading || isComplete) return;
-
     const cleanAnswer = answerText.trim();
     if (!cleanAnswer) return;
 
-    // Store answer
     const newAnswers = { ...answers, [currentField.id]: cleanAnswer };
     setAnswers(newAnswers);
 
-    const nextIdx = fieldIndex + 1;
+    // Find next unanswered field
+    let nextIdx = fieldIndex + 1;
+    while (nextIdx < fields.length && newAnswers[fields[nextIdx].id]) {
+      nextIdx++;
+    }
     const isLast = nextIdx >= fields.length;
 
-    // Add user message
     setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
     setIsLoading(true);
     setInput("");
 
     if (isLast) {
-      // All done — ask Claude for a completion message
       const langName = LANG_NAMES[lang] || "English";
-      const prompt = `The user has finished answering all questions for their Disability Support Pension form. Congratulate them warmly in ${langName}. Tell them their form is complete and ready to download. Keep it to 2-3 sentences. End with something encouraging.`;
+      const prompt = `The user has finished all questions for their DSP form. Congratulate them warmly in ${langName}. Tell them their form is complete and ready to download — they can see it in the preview. Keep it to 2-3 sentences.`;
 
       let text = "";
       streamResponse({
         messages: [
-          ...messages.filter(m => !m.buttons).map(m => ({ role: m.role, content: m.content })),
+          ...messages.filter(m => !m.buttons).map(m => ({ role: m.role, content: m.content })).slice(-4),
           { role: "user", content: cleanAnswer },
           { role: "user", content: prompt },
         ],
         onDelta: (chunk) => {
           text += chunk;
           setMessages(prev => {
-            const withUser = prev.filter(m => m.role === "user" || !m.content.startsWith(text.slice(0, 10)));
             const last = prev[prev.length - 1];
             if (last?.role === "assistant" && prev.length > messages.length + 1) {
               return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text } : m);
@@ -185,15 +214,16 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
         onDone: () => {
           setIsLoading(false);
           setIsComplete(true);
+          onComplete?.();
         },
         onError: () => {
-          setMessages(prev => [...prev, { role: "assistant", content: "🎉 Your form is complete and ready to download! You've done a great job." }]);
+          setMessages(prev => [...prev, { role: "assistant", content: "🎉 Your form is complete! You can see it in the preview and download it when you're ready." }]);
           setIsLoading(false);
           setIsComplete(true);
+          onComplete?.();
         },
       });
     } else {
-      // Ask next question via Claude
       const nextField = fields[nextIdx];
       const langName = LANG_NAMES[lang] || "English";
       const prompt = `The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}, then ask for their "${nextField.label}". ${nextField.type === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" if not applicable.' : ""} Keep it to 1-2 short sentences.`;
@@ -225,32 +255,11 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
           setIsLoading(false);
         },
         onError: () => {
-          // Fallback to pre-written question
           setMessages(prev => [...prev, { role: "assistant", content: `${currentField.acknowledgment} ${nextField.question}`, buttons }]);
           setFieldIndex(nextIdx);
           setIsLoading(false);
         },
       });
-    }
-  };
-
-  const handleDownload = async () => {
-    setIsGenerating(true);
-    try {
-      // Normalize "same" for postal address
-      const data = { ...answers };
-      if (data.postalAddress?.toLowerCase() === "same" || data.postalAddress?.toLowerCase() === "yes") {
-        data.postalAddress = data.permanentAddress || "";
-      }
-      const pdfBytes = await prefillSA466(data);
-      const today = new Date().toLocaleDateString("en-AU");
-      downloadPdf(pdfBytes, `SA466-DSP-prefilled-${today}.pdf`);
-      toast.success("Your pre-filled DSP form has been downloaded! 🎉");
-    } catch (err) {
-      console.error("PDF error:", err);
-      toast.error("Could not generate PDF. Please try again.");
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -260,10 +269,14 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
     processAnswer(text);
   };
 
-  const progress = Math.round((fieldIndex / fields.length) * 100);
+  const answeredCount = Object.keys(answers).filter(k => {
+    const v = answers[k];
+    return v && v.toLowerCase() !== "none" && v.toLowerCase() !== "same";
+  }).length;
+  const progress = Math.round((answeredCount / fields.length) * 100);
 
   return (
-    <div className="flex flex-col rounded-2xl border border-border bg-card overflow-hidden" dir={dir}>
+    <div className="flex flex-col rounded-2xl border border-border bg-card overflow-hidden h-full" dir={dir}>
       {/* Header */}
       <div className="flex items-center gap-3 bg-primary px-4 py-3">
         <LumaAvatar size={32} />
@@ -290,19 +303,19 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
       </div>
       <div className="px-4 py-1.5 text-[11px] text-muted-foreground text-center">
         {isComplete
-          ? "✅ All questions answered"
-          : `Question ${fieldIndex + 1} of ${fields.length}`
+          ? "✅ All questions answered — your form is ready!"
+          : `${answeredCount} of ${fields.length} fields completed`
         }
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 max-h-[400px] min-h-[280px]">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
         {messages.map((msg, i) => (
           <div key={i}>
             <div className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && <LumaAvatar size={28} />}
               <div
-                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
+                className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${
                   msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary border border-border text-foreground"
@@ -311,7 +324,6 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
                 <div className="whitespace-pre-line">{msg.content}</div>
               </div>
             </div>
-            {/* Buttons for select/yesno — only show on the last assistant message */}
             {msg.role === "assistant" && msg.buttons && i === messages.length - 1 && !isLoading && !isComplete && (
               <div className="flex flex-wrap gap-2 mt-2 ml-9">
                 {msg.buttons.map((btn) => (
@@ -337,56 +349,45 @@ const FormFillingChat = ({ serviceSlug }: FormFillingChatProps) => {
         )}
       </div>
 
-      {/* Input / Download */}
-      <div className="border-t border-border bg-card px-3 py-2.5">
-        {isComplete ? (
-          <button
-            onClick={handleDownload}
-            disabled={isGenerating}
-            className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
-          >
-            {isGenerating ? "⏳ Generating PDF…" : "📥 Download your pre-filled SA466 form"}
-          </button>
-        ) : (
-          <>
-            {/* Only show text input for text/date fields (not select/yesno which use buttons) */}
-            <div className="flex gap-2">
-              <input
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-                placeholder={currentField?.type === "date" ? "DD/MM/YYYY" : "Type your answer…"}
-                className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                dir={lang === "AR" ? "rtl" : "ltr"}
-                disabled={isLoading}
-              />
-              {micSupported && (
-                <button
-                  onClick={toggleMic}
-                  className={`rounded-xl px-3 py-2 text-sm transition-all ${
-                    listening
-                      ? "bg-destructive text-destructive-foreground animate-pulse"
-                      : "border border-border bg-background text-foreground hover:bg-muted"
-                  }`}
-                  title={listening ? "Stop recording" : "Voice input"}
-                >
-                  🎤
-                </button>
-              )}
+      {/* Input */}
+      {!isComplete && (
+        <div className="border-t border-border bg-card px-3 py-2.5">
+          <div className="flex gap-2">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+              placeholder={currentField?.type === "date" ? "DD/MM/YYYY" : "Type your answer…"}
+              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              dir={lang === "AR" ? "rtl" : "ltr"}
+              disabled={isLoading}
+            />
+            {micSupported && (
               <button
-                onClick={send}
-                disabled={isLoading || !input.trim()}
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50"
+                onClick={toggleMic}
+                className={`rounded-xl px-3 py-2 text-sm transition-all ${
+                  listening
+                    ? "bg-destructive text-destructive-foreground animate-pulse"
+                    : "border border-border bg-background text-foreground hover:bg-muted"
+                }`}
+                title={listening ? "Stop recording" : "Voice input"}
               >
-                Send
+                🎤
               </button>
-            </div>
-          </>
-        )}
-        <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-          🔒 Private · Not stored · Not connected to immigration
-        </p>
-      </div>
+            )}
+            <button
+              onClick={send}
+              disabled={isLoading || !input.trim()}
+              className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50"
+            >
+              Send
+            </button>
+          </div>
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+            🔒 Private · Not stored · Not connected to immigration
+          </p>
+        </div>
+      )}
     </div>
   );
 };

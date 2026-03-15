@@ -257,41 +257,12 @@ const EligibilityChat = ({ service }: EligibilityChatProps) => {
           </>
         ) : (
           <div className="space-y-2">
-            {service.slug === "disability-support" && (
-              <button
-                onClick={(e) => { e.preventDefault(); navigate(`/fill-form/${service.slug}`); }}
-                className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90"
-              >
-                ✨ {t("eligibility.fillWithLuma") || "Let Luma fill your form"}
-              </button>
-            )}
             <button
-              onClick={(e) => { e.preventDefault(); navigate(`/prepare-form?service=${service.slug}`); }}
-              className={`w-full rounded-xl ${service.slug === "disability-support" ? "border-2 border-primary bg-card text-primary" : "bg-primary text-primary-foreground"} py-3 text-sm font-bold transition-all hover:bg-primary/10`}
+              onClick={(e) => { e.preventDefault(); navigate(`/fill-form/${service.slug}`); }}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:bg-primary/90"
             >
-              📄 {t("eligibility.downloadChecklist")}
+              ✨ Let Luma help you fill your form
             </button>
-            {officialFormLinks[service.slug]?.type === "url" ? (
-              <a
-                href={officialFormLinks[service.slug].value}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full rounded-xl border-2 border-primary bg-card py-3 text-center text-sm font-bold text-primary transition-all hover:bg-primary/10"
-              >
-                📥 {t("eligibility.getOfficialForm")}
-              </a>
-            ) : officialFormLinks[service.slug]?.type === "phone" ? (
-              <button
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigator.clipboard.writeText("1800200422");
-                  toast.success(t("prepare.phoneCopied"));
-                }}
-                className="w-full rounded-xl border-2 border-primary bg-card py-3 text-sm font-bold text-primary transition-all hover:bg-primary/10"
-              >
-                📞 {t("eligibility.callAgedCare")} — 1800 200 422
-              </button>
-            ) : null}
           </div>
         )}
         <p className="mt-1.5 text-center text-[10px] text-muted-foreground">

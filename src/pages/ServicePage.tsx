@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Navigate } from "react-router-dom";
 import { getServiceBySlug } from "@/data/services";
 import TopBar from "@/components/landing/TopBar";
 import StickyNav from "@/components/landing/StickyNav";
@@ -29,6 +29,11 @@ const ServicePage = () => {
   const navigate = useNavigate();
   const { t, dir } = useLanguage();
   const service = getServiceBySlug(slug || "");
+
+  // DSP goes straight to form filling — no eligibility questions
+  if (slug === "disability-support") {
+    return <Navigate to="/fill-form/disability-support" replace />;
+  }
 
   if (!service) {
     return (
