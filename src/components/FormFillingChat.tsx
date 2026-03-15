@@ -68,6 +68,7 @@ interface FormFillingChatProps {
   prefilled?: Record<string, string>;
   onAnswersChange?: (answers: Record<string, string>) => void;
   onComplete?: () => void;
+  onFieldAnswered?: (fieldId: string) => void;
 }
 
 const LANG_NAMES: Record<string, string> = {
