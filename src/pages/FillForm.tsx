@@ -202,7 +202,7 @@ const FillForm = () => {
           </button>
           {isComplete && (
             <button
-              onClick={handleDownload}
+              onClick={handleDownloadClick}
               disabled={isGenerating}
               className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
             >
