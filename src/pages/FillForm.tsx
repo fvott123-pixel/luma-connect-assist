@@ -91,7 +91,7 @@ const FillForm = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background" dir={dir}>
+    <div className="h-screen flex flex-col bg-background overflow-hidden" dir={dir}>
       <TopBar />
       <StickyNav />
       <main className="flex flex-col flex-1 min-h-0 px-4 py-2 mx-auto w-full max-w-7xl">
