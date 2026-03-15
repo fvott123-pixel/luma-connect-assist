@@ -32,6 +32,7 @@ const FillForm = () => {
   const [extractionSummary, setExtractionSummary] = useState<string[]>([]);
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   const [showReview, setShowReview] = useState(false);
+  const [fixFieldId, setFixFieldId] = useState<string | null>(null);
 
   const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
     setAnswers(newAnswers);
@@ -231,6 +232,8 @@ const FillForm = () => {
               onFieldAnswered={setLastAnsweredField}
               resumedAnswers={resumedSession?.answers}
               resumedFieldIndex={resumedSession?.fieldIndex}
+              fixFieldId={fixFieldId}
+              onFixFieldHandled={() => setFixFieldId(null)}
             />
           </div>
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
@@ -252,8 +255,7 @@ const FillForm = () => {
           onConfirm={doDownload}
           onFixField={(fieldId) => {
             setShowReview(false);
-            setLastAnsweredField(fieldId);
-            toast.info(`Please update the "${fieldId}" field in the chat.`);
+            setFixFieldId(fieldId);
           }}
         />
       )}
