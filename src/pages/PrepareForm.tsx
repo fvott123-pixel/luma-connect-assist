@@ -73,11 +73,62 @@ const PrepareForm = () => {
   const [postcode, setPostcode] = useState("");
   const [email, setEmail] = useState("");
 
-  const [prefilling, setPrefilling] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+  const [idUploaded, setIdUploaded] = useState(false);
 
   const isMedicare = selectedService === "medicare";
   const service = getServiceBySlug(selectedService);
   const serviceName = service ? t(nameKeys[selectedService] || service.name) : "";
+
+  const handleIdUploadAndExtract = async (file: File) => {
+    setIdFile(file);
+    setExtracting(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const resp = await fetch(EXTRACT_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ image: base64, mimeType: file.type }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: "Extraction failed" }));
+        throw new Error(err.error || "Extraction failed");
+      }
+
+      const data = await resp.json();
+
+      if (data.firstName) setFirstName(data.firstName);
+      if (data.surname) setSurname(data.surname);
+      if (data.fullName && !isMedicare) setName(data.fullName);
+      if (data.dateOfBirth) setDob(data.dateOfBirth);
+      if (data.address) setAddress(data.address);
+      if (data.suburb) setSuburb(data.suburb);
+      if (data.state) setState(data.state);
+      if (data.postcode) setPostcode(data.postcode);
+      if (data.gender) setGender(data.gender);
+
+      setIdUploaded(true);
+      toast.success("✨ Details extracted from your ID!");
+    } catch (err) {
+      console.error("ID extraction error:", err);
+      toast.error("Could not read your ID. Please fill in details manually.");
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const handleSelectService = (slug: string) => {
     setSelectedService(slug);
