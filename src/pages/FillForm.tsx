@@ -25,6 +25,10 @@ const FillForm = () => {
   const [isComplete, setIsComplete] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
+    setAnswers(newAnswers);
+  }, []);
+
   const serviceName = serviceNames[slug || ""] || "Form";
 
   if (!slug || !serviceNames[slug]) {
@@ -47,10 +51,6 @@ const FillForm = () => {
   const handleSkip = () => {
     setPhase("filling");
   };
-
-  const handleAnswersChange = useCallback((newAnswers: Record<string, string>) => {
-    setAnswers(newAnswers);
-  }, []);
 
   const handleDownload = async () => {
     setIsGenerating(true);
@@ -115,7 +115,6 @@ const FillForm = () => {
               <PdfPreview answers={answers} />
             </div>
 
-            {/* Download button */}
             {isComplete && (
               <button
                 onClick={handleDownload}
