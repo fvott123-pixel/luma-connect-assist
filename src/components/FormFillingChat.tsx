@@ -141,6 +141,13 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     onAnswersChange?.(answers);
   }, [answers, onAnswersChange]);
 
+  // Auto-save to localStorage on every answer change
+  useEffect(() => {
+    if (Object.keys(answers).length === 0) return;
+    const code = saveSession(serviceSlug, lang, answers, fieldIndex);
+    setSessionCode(code);
+  }, [answers, fieldIndex, serviceSlug, lang]);
+
   // Scroll on new messages
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
