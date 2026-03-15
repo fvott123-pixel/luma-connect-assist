@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import TopBar from "@/components/landing/TopBar";
 import StickyNav from "@/components/landing/StickyNav";
