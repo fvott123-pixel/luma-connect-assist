@@ -234,7 +234,7 @@ const FillForm = () => {
             />
           </div>
           <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
-            <PdfPreview answers={answers} scrollToField={lastAnsweredField} />
+            <PdfPreview answers={answers} scrollToField={lastAnsweredField} onSignatureChange={setSignatureDataUrl} signatureDataUrl={signatureDataUrl} />
           </div>
         </div>
 

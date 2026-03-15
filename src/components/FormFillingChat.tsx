@@ -305,6 +305,22 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
+    // ── Declaration date: auto-fill today if user says "yes" ──
+    if (currentField.id === "declarationDate") {
+      const yesPattern = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine)$/i;
+      if (yesPattern.test(cleanAnswer)) {
+        const now = new Date();
+        const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+        setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: `📅 I've entered **${todayStr}** as today's date for the declaration.`,
+        }]);
+        applyAnswer(todayStr);
+        return;
+      }
+    }
+
     // ── Date field: parse natural language dates ──
     if (currentField.fieldType === "date") {
       const dateResult = parseNaturalDate(cleanAnswer);
