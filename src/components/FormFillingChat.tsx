@@ -6,6 +6,8 @@ import { SA466_FIELDS, SA466_SECTIONS, type SA466Field } from "@/lib/formMaps/sa
 import { saveSession } from "@/lib/formSession";
 import { parseNaturalDate } from "@/lib/dateParser";
 
+const TRANSLATE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/translate-answer`;
+
 type Msg = {
   role: "user" | "assistant";
   content: string;
@@ -112,7 +114,7 @@ function getCurrentSection(questionNumber: number): string {
 }
 
 const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, onFieldAnswered, resumedAnswers, resumedFieldIndex, onSaveAndExit }: FormFillingChatProps) => {
-  const { lang, dir } = useLanguage();
+  const { lang, dir, t } = useLanguage();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [answers, setAnswers] = useState<Record<string, string>>({ ...(prefilled || {}), ...(resumedAnswers || {}) });
   const [isLoading, setIsLoading] = useState(false);
@@ -218,18 +220,36 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   }, []);
 
   function getButtonsForField(field: SA466Field) {
-    if (field.signatureNotice) return undefined; // signature is a notice
+    if (field.signatureNotice) return undefined;
     if (field.fieldType === "select" && field.options) {
       return field.options.map(o => ({ label: o, value: o }));
     }
     return undefined;
   }
 
-  // Correction phrases detection — match anywhere in the input, not just exact match
-  const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake)\b/i;
+  /** Translate a non-English answer to English via edge function */
+  async function translateToEnglish(text: string, sourceLang: string): Promise<string> {
+    try {
+      const resp = await fetch(TRANSLATE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ text, sourceLang }),
+      });
+      if (!resp.ok) return text;
+      const data = await resp.json();
+      return data.translated || text;
+    } catch {
+      return text;
+    }
+  }
 
-  // Skip/none phrases for detecting skip attempts
-  const SKIP_PATTERNS = /^(none|skip|n\/a|na|not applicable|no answer|pass|don't have|dont have|i don't know|i dont know|nothing|nil|—|-|\.{1,3})$/i;
+  // Correction phrases detection — match anywhere in the input, not just exact match
+  const CORRECTION_PATTERNS = /\b(last answer was wrong|that was wrong|that's wrong|go back|undo|change my last answer|i made a mistake|wrong answer|fix that|correction|let me change that|change previous|redo last|that is wrong|was wrong|made a mistake|era sbagliato|ho sbagliato|torna indietro|cambia risposta|errore|غلط|गलत भयो|sai rồi|lỗi rồi)\b/i;
+
+  const SKIP_PATTERNS = /^(none|skip|n\/a|na|not applicable|no answer|pass|don't have|dont have|i don't know|i dont know|nothing|nil|—|-|\.{1,3}|nessuno|salta|non lo so|niente|لا شيء|تخطي|छोड्नुहोस्|không có|bỏ qua)$/i;
 
   const [correctionMode, setCorrectionMode] = useState<{ fieldId: string; fieldIndex: number; label: string } | null>(null);
 
@@ -305,41 +325,37 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       return;
     }
 
-    // ── Declaration date: auto-fill today if user says "yes" ──
-    if (currentField.id === "declarationDate") {
-      const yesPattern = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine)$/i;
-      if (yesPattern.test(cleanAnswer)) {
-        const now = new Date();
-        const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
-        setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
-        setMessages(prev => [...prev, {
-          role: "assistant",
-          content: `📅 I've entered **${todayStr}** as today's date for the declaration.`,
-        }]);
-        applyAnswer(todayStr);
-        return;
-      }
+    // ── "Yes/today" patterns in any language for declaration date ──
+    const YES_TODAY_PATTERN = /^(yes|yep|yeah|sure|ok|okay|today|yes please|yea|ya|go ahead|that's fine|thats fine|sì|si|certo|oggi|va bene|نعم|اليوم|हो|आज|có|hôm nay|vâng)$/i;
+    
+    if (currentField.id === "declarationDate" && YES_TODAY_PATTERN.test(cleanAnswer)) {
+      const now = new Date();
+      const todayStr = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+      setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: `📅 ${todayStr}`,
+      }]);
+      applyAnswer(todayStr);
+      return;
     }
 
-    // ── Date field: parse natural language dates ──
+    // ── Date field: parse natural language dates (works for all languages via dateParser) ──
     if (currentField.fieldType === "date") {
       const dateResult = parseNaturalDate(cleanAnswer);
       if (dateResult) {
-        // Show confirmation message with converted date
         const finalDate = dateResult.parsed;
         setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+        // Auto-apply date without confirmation for smoother UX
         setMessages(prev => [...prev, {
           role: "assistant",
-          content: `📅 I've entered **${finalDate}** as ${dateResult.label} — is that correct?`,
-          buttons: [
-            { label: "✅ Yes, correct", value: `__CONFIRM_DATE__${finalDate}` },
-            { label: "✏️ No, let me type it", value: "__REJECT_DATE__" },
-          ],
+          content: `📅 ${finalDate}`,
         }]);
+        applyAnswer(finalDate);
         return;
       }
 
-      // Handle date confirmation
+      // Handle date confirmation (legacy buttons)
       if (cleanAnswer.startsWith("__CONFIRM_DATE__")) {
         const confirmed = cleanAnswer.replace("__CONFIRM_DATE__", "");
         applyAnswer(confirmed);
@@ -355,6 +371,18 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     }
 
     console.log(`Answer received: ${cleanAnswer}`);
+
+    // ── Translate non-English answers to English before saving ──
+    if (lang !== "EN" && currentField.fieldType !== "date" && currentField.fieldType !== "select") {
+      setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+      setIsLoading(true);
+      translateToEnglish(cleanAnswer, lang).then(translated => {
+        console.log(`Translated: "${cleanAnswer}" → "${translated}"`);
+        applyAnswer(translated);
+      });
+      return;
+    }
+
     applyAnswer(cleanAnswer);
   };
 
@@ -529,14 +557,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         <LumaAvatar size={32} />
         <div className="flex-1 text-left">
           <div className="font-serif text-sm font-bold text-primary-foreground">
-            Luma ✨ <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">Form Assistant</span>
+            Luma ✨ <span className="ml-1 rounded-full bg-primary-foreground/20 px-2 py-0.5 text-[10px]">{t("form.formAssistant")}</span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-primary-foreground/70">
             <span className="animate-pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-[hsl(var(--mint))]" />
-            Disability Support Pension
+            {t("form.dspTitle")}
           </div>
         </div>
-        <button onClick={toggleMute} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? "Unmute" : "Mute"}>
+        <button onClick={toggleMute} className="rounded-full p-1 text-primary-foreground/70 hover:bg-primary-foreground/10 hover:text-primary-foreground" title={muted ? t("form.unmute") : t("form.mute")}>
           {muted ? "🔇" : "🔊"}
         </button>
       </div>
@@ -550,11 +578,11 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       </div>
       <div className="px-4 py-1.5 text-[11px] text-muted-foreground text-center space-y-0.5">
         {isComplete
-          ? <span>✅ All questions answered — your form is ready!</span>
+          ? <span>{t("form.allComplete")}</span>
           : (
             <>
               <div className="font-medium text-foreground/80">{sectionTitle}</div>
-              <div>{answeredCount} of {totalQuestions} questions complete</div>
+              <div>{answeredCount} {t("form.questionsOf")} {totalQuestions} {t("form.questionsComplete")}</div>
             </>
           )
         }
@@ -595,7 +623,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
           <div className="flex gap-2">
             <LumaAvatar size={28} />
             <div className="rounded-2xl border border-border bg-secondary px-3 py-2 text-sm text-muted-foreground">
-              Luma is thinking…
+              {t("form.thinking")}
             </div>
           </div>
         )}
@@ -609,7 +637,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder={currentField?.fieldType === "date" ? "DD/MM/YYYY" : "Type your answer…"}
+              placeholder={currentField?.fieldType === "date" ? t("form.datePlaceholder") : t("form.placeholder")}
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               dir={lang === "AR" ? "rtl" : "ltr"}
               disabled={isLoading}
@@ -622,7 +650,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                     ? "bg-destructive text-destructive-foreground animate-pulse"
                     : "border border-border bg-background text-foreground hover:bg-muted"
                 }`}
-                title={listening ? "Stop recording" : "Voice input"}
+                title={listening ? t("form.stopRecording") : t("form.voiceInput")}
               >
                 🎤
               </button>
@@ -632,7 +660,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               disabled={isLoading || !input.trim()}
               className="rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50"
             >
-              Send
+              {t("form.send")}
             </button>
           </div>
           <div className="mt-1.5 flex items-center justify-between">
@@ -647,7 +675,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                 }}
                 className="text-[10px] font-semibold text-primary hover:underline"
               >
-                💾 Save & continue later
+                {t("form.saveAndContinue")}
               </button>
               {fieldIndex > 0 && !correctionMode && (
                 <button
@@ -655,18 +683,18 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                   disabled={isLoading}
                   className="text-[10px] font-semibold text-destructive hover:underline disabled:opacity-50"
                 >
-                  ↩ Undo last answer
+                  {t("form.undoLast")}
                 </button>
               )}
             </div>
             {sessionCode && (
               <span className="text-[10px] text-muted-foreground">
-                Session: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
+                {t("form.session")}: <span className="font-mono font-bold text-foreground">{sessionCode}</span>
               </span>
             )}
           </div>
           <p className="mt-1 text-center text-[10px] text-muted-foreground">
-            🔒 Saved on your device only · Not sent anywhere
+            {t("form.privacy")}
           </p>
         </div>
       )}

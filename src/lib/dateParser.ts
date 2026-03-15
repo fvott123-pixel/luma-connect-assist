@@ -7,7 +7,15 @@ const MONTHS: Record<string, number> = {
   april: 4, apr: 4, may: 5, june: 6, jun: 6, july: 7, jul: 7,
   august: 8, aug: 8, september: 9, sep: 9, sept: 9,
   october: 10, oct: 10, november: 11, nov: 11, december: 12, dec: 12,
+  // Italian
+  gennaio: 1, febbraio: 2, marzo: 3, aprile: 4, maggio: 5, giugno: 6,
+  luglio: 7, agosto: 8, settembre: 9, ottobre: 10, novembre: 11, dicembre: 12,
 };
+
+/** Multilingual "today" / "yesterday" / "tomorrow" words */
+const TODAY_WORDS = ["today", "oggi", "आज", "اليوم", "hôm nay"];
+const YESTERDAY_WORDS = ["yesterday", "ieri", "हिजो", "أمس", "hôm qua"];
+const TOMORROW_WORDS = ["tomorrow", "domani", "भोलि", "غداً", "ngày mai"];
 
 function fmt(d: Date): string {
   const dd = String(d.getDate()).padStart(2, "0");
@@ -23,20 +31,20 @@ function fmt(d: Date): string {
 export function parseNaturalDate(input: string): { parsed: string; label: string } | null {
   const s = input.trim().toLowerCase();
 
-  // "today"
-  if (s === "today") {
+  // "today" in any language
+  if (TODAY_WORDS.includes(s)) {
     return { parsed: fmt(new Date()), label: "today's date" };
   }
 
-  // "yesterday"
-  if (s === "yesterday") {
+  // "yesterday" in any language
+  if (YESTERDAY_WORDS.includes(s)) {
     const d = new Date();
     d.setDate(d.getDate() - 1);
     return { parsed: fmt(d), label: "yesterday's date" };
   }
 
-  // "tomorrow"
-  if (s === "tomorrow") {
+  // "tomorrow" in any language
+  if (TOMORROW_WORDS.includes(s)) {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return { parsed: fmt(d), label: "tomorrow's date" };

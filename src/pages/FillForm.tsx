@@ -19,7 +19,7 @@ const serviceNames: Record<string, string> = {
 const FillForm = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { dir } = useLanguage();
+  const { dir, t } = useLanguage();
 
   const [phase, setPhase] = useState<"resume-check" | "vault" | "filling">("resume-check");
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
@@ -198,7 +198,7 @@ const FillForm = () => {
       <main className="flex flex-col flex-1 min-h-0 px-4 py-2 mx-auto w-full max-w-7xl">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
-            ← Back
+            {t("form.back")}
           </button>
           {isComplete && (
             <button
@@ -206,7 +206,7 @@ const FillForm = () => {
               disabled={isGenerating}
               className="rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:bg-[hsl(var(--forest-hover))] disabled:opacity-50 shadow-lg"
             >
-              {isGenerating ? "⏳ Generating…" : "📥 Download PDF"}
+              {isGenerating ? t("form.generating") : t("form.downloadPdf")}
             </button>
           )}
         </div>
@@ -214,7 +214,7 @@ const FillForm = () => {
         {/* Extraction summary banner */}
         {extractionSummary.length > 0 && (
           <div className="mb-2 rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 px-4 py-2">
-            <p className="text-[11px] font-bold text-foreground">📋 Pre-filled from your documents:</p>
+            <p className="text-[11px] font-bold text-foreground">{t("form.prefilledBanner")}</p>
             {extractionSummary.map((s, i) => (
               <p key={i} className="text-[10px] text-foreground/70">✅ {s}</p>
             ))}
@@ -241,7 +241,7 @@ const FillForm = () => {
         <div className="mt-2 rounded-xl border border-primary/15 bg-secondary px-4 py-2.5 flex gap-3 items-start">
           <span className="text-lg">🔒</span>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            <span className="font-bold text-primary">Your data stays private.</span> Documents are deleted after reading. Progress saved on your device only.
+            <span className="font-bold text-primary">{t("form.privacyBanner")}</span> {t("form.privacyDesc")}
           </p>
         </div>
       </main>
