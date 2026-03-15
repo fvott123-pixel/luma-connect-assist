@@ -526,7 +526,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const finishForm = (finalAnswers: Record<string, string>, lastAnswer: string) => {
     setIsLoading(true);
     const langName = LANG_NAMES[lang] || "English";
-    const prompt = `The user has completed ALL questions for their SA466 Disability Support Pension form! Congratulate them warmly in ${langName}. Tell them: 1) Their form is complete and ready to download. 2) They need to print it and sign where indicated. 3) Post it to: Reply Paid 7800, Canberra BC ACT 2610. Keep it to 3 sentences.`;
+    const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}.` : "";
+    const prompt = `${langInstruction} The user has completed ALL questions for their SA466 Disability Support Pension form! Congratulate them warmly in ${langName}. Tell them: 1) Their form is complete and ready to download. 2) They need to print it and sign where indicated. 3) Post it to: Reply Paid 7800, Canberra BC ACT 2610. Keep it to 3 sentences.`;
 
     let text = "";
     streamResponse({
