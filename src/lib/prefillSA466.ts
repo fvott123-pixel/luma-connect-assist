@@ -129,9 +129,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
 export function downloadPdf(bytes: Uint8Array, filename: string) {
   const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
