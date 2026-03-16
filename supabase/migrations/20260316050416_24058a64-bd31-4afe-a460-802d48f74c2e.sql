@@ -1,0 +1,1 @@
+CREATE POLICY "Public read access for form templates" ON storage.objects FOR SELECT USING (bucket_id = 'form-templates');
