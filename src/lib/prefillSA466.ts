@@ -49,10 +49,9 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-  const fontSize = 10;
+  const fontSize = 11;
   const color = rgb(0, 0, 0);
   const pages = pdfDoc.getPages();
-  const Y_OFFSET = -20; // Adjust coordinates down to align with form boxes
 
   for (const field of SA466_FIELDS) {
     const value = data[field.id];
@@ -62,12 +61,17 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     const page = pages[field.pageNumber];
     if (!page) continue;
 
+    const { height: pageHeight } = page.getSize();
+
+    // Convert top-offset y to PDF bottom-origin y
+    const toY = (topOffset: number) => pageHeight - topOffset;
+
     // Tick marks for select fields
     if (field.tickPositions && field.tickPositions[value]) {
       const pos = field.tickPositions[value];
-      page.drawText("✓", {
+      page.drawText("X", {
         x: pos.x,
-        y: pos.y + Y_OFFSET,
+        y: toY(pos.y),
         size: 12,
         font: fontBold,
         color,
@@ -80,9 +84,9 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const parts = parseDateParts(value);
       if (parts) {
         const boxes = field.dateBoxes;
-        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY + Y_OFFSET, size: fontSize, font, color });
-        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY + Y_OFFSET, size: fontSize, font, color });
-        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY + Y_OFFSET, size: fontSize, font, color });
+        page.drawText(parts.dd, { x: boxes.ddX, y: toY(boxes.ddY), size: fontSize, font, color });
+        page.drawText(parts.mm, { x: boxes.mmX, y: toY(boxes.mmY), size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: toY(boxes.yyyyY), size: fontSize, font, color });
         continue;
       }
     }
@@ -90,7 +94,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     // Regular text
     page.drawText(value, {
       x: field.x,
-      y: field.y + Y_OFFSET,
+      y: toY(field.y),
       size: fontSize,
       font,
       color,
