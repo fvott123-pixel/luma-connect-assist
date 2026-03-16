@@ -110,10 +110,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const sigImage = await pdfDoc.embedPng(sigBytes);
       const sigPage = pages[33]; // Declaration page
       if (sigPage) {
+        const { height: sigPageHeight } = sigPage.getSize();
         const sigDims = sigImage.scale(0.3);
         sigPage.drawImage(sigImage, {
           x: 130,
-          y: 220 + Y_OFFSET,
+          y: sigPageHeight - 620,
           width: Math.min(sigDims.width, 200),
           height: Math.min(sigDims.height, 50),
         });
