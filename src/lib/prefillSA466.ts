@@ -1,6 +1,8 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
+const SUPABASE_PDF_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/form-templates/sa466en.pdf`;
+
 export type SA466FormData = Record<string, string>;
 
 /**
