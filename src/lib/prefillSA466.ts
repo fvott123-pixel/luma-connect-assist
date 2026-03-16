@@ -1,13 +1,10 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
-const SUPABASE_PDF_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/form-templates/sa466en.pdf`;
-
 export type SA466FormData = Record<string, string>;
 
-/**
- * Parse a date string into parts for writing into separate boxes.
- */
+const SUPABASE_PDF_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/form-templates/sa466en.pdf`;
+
 function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
   const m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (m) {
@@ -20,11 +17,8 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
   return null;
 }
 
-/**
- * Fill in SA466 DSP form PDF with collected answers at their mapped coordinates.
- * Handles text, tick marks, and split date fields.
- */
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
+  // Try multiple sources for the PDF template
   const paths = [
     SUPABASE_PDF_URL,
     `/forms/DSP/sa466en.pdf`,
@@ -64,10 +58,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     const page = pages[field.pageNumber];
     if (!page) continue;
 
-    const { height: pageHeight } = page.getSize();
+    // Use actual page dimensions — never assume 841
+    const { width, height } = page.getSize();
 
-    // Convert top-offset y to PDF bottom-origin y
-    const toY = (topOffset: number) => pageHeight - topOffset;
+    // Convert top-offset y to PDF bottom-left origin y
+    const toY = (topOffset: number) => height - topOffset;
 
     // Tick marks for select fields
     if (field.tickPositions && field.tickPositions[value]) {
@@ -94,7 +89,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       }
     }
 
-    // Regular text
+    // Regular text at bottom-left origin coordinates
     page.drawText(value, {
       x: field.x,
       y: toY(field.y),
@@ -113,9 +108,10 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const sigImage = await pdfDoc.embedPng(sigBytes);
       const declarationPage = pages[21]; // Part I Declaration page
       if (declarationPage) {
+        const { height: declHeight } = declarationPage.getSize();
         declarationPage.drawImage(sigImage, {
           x: 147,
-          y: 50,
+          y: declHeight - 792, // bottom-left origin
           width: 200,
           height: 50,
         });
@@ -125,11 +121,12 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     }
   }
 
-  return pdfDoc.save();
+  const savedBytes = await pdfDoc.save();
+  return savedBytes;
 }
 
 export function downloadPdf(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+  const blob = new Blob([bytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
