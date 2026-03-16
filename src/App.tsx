@@ -36,7 +36,6 @@ const App = () => (
             <Route path="/aged-care" element={<Navigate to="/service/aged-care" replace />} />
             <Route path="/carer-payment" element={<Navigate to="/service/carer-payment" replace />} />
             <Route path="/age-pension" element={<Navigate to="/service/age-pension" replace />} />
-            <Route path="/base64-util" element={<Base64Util />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
