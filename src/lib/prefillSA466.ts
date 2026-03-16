@@ -1,6 +1,8 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
+const SUPABASE_PDF_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/form-templates/sa466en.pdf`;
+
 export type SA466FormData = Record<string, string>;
 
 /**
@@ -24,6 +26,7 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
  */
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
   const paths = [
+    SUPABASE_PDF_URL,
     `/forms/DSP/sa466en.pdf`,
     `/forms/CUsersfvottDesktopGovernment%20Forms/Disability%20Support%20Pension/sa466en.pdf`,
   ];
@@ -38,7 +41,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
         break;
       }
     } catch (err) {
-      console.warn("SA466 fetch error:", err);
+      console.warn("SA466 fetch error for", url, err);
     }
   }
 
