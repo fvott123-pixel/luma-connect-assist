@@ -23,10 +23,9 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
  * Handles text, tick marks, and split date fields.
  */
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
-  const origin = window.location.origin;
   const paths = [
-    `${origin}/forms/DSP/sa466en.pdf`,
-    `${origin}/forms/CUsersfvottDesktopGovernment%20Forms/Disability%20Support%20Pension/sa466en.pdf`,
+    `/forms/DSP/sa466en.pdf`,
+    `/forms/CUsersfvottDesktopGovernment%20Forms/Disability%20Support%20Pension/sa466en.pdf`,
   ];
 
   let pdfBytes: ArrayBuffer | null = null;
