@@ -1,0 +1,1 @@
+INSERT INTO storage.buckets (id, name, public) VALUES ('form-templates', 'form-templates', true) ON CONFLICT DO NOTHING;
