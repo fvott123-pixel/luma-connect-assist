@@ -108,15 +108,13 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const sigResponse = await fetch(signatureDataUrl);
       const sigBytes = new Uint8Array(await sigResponse.arrayBuffer());
       const sigImage = await pdfDoc.embedPng(sigBytes);
-      const sigPage = pages[33]; // Declaration page
-      if (sigPage) {
-        const { height: sigPageHeight } = sigPage.getSize();
-        const sigDims = sigImage.scale(0.3);
-        sigPage.drawImage(sigImage, {
-          x: 130,
-          y: sigPageHeight - 620,
-          width: Math.min(sigDims.width, 200),
-          height: Math.min(sigDims.height, 50),
+      const declarationPage = pages[21]; // Part I Declaration page
+      if (declarationPage) {
+        declarationPage.drawImage(sigImage, {
+          x: 147,
+          y: 50,
+          width: 200,
+          height: 50,
         });
       }
     } catch (err) {
