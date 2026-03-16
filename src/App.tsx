@@ -12,6 +12,7 @@ import Volunteer from "./pages/Volunteer";
 import About from "./pages/About";
 import FillForm from "./pages/FillForm";
 import NotFound from "./pages/NotFound";
+import Base64Util from "./pages/Base64Util";
 
 const queryClient = new QueryClient();
 
