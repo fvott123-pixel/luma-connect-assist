@@ -20,9 +20,9 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
   // Try multiple sources for the PDF template
   const paths = [
+    'https://www.servicesaustralia.gov.au/sites/default/files/sa466-2210en.pdf',
     SUPABASE_PDF_URL,
     `/forms/SA466.pdf`,
-    `/forms/DSP/sa466en.pdf`,
   ];
 
   let pdfBytes: ArrayBuffer | null = null;
