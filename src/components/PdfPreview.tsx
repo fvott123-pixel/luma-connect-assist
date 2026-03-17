@@ -99,7 +99,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
           <p className="text-[11px] font-bold text-foreground mb-2">✍️ Your Signature</p>
           <SignaturePad
             onSignatureChange={onSignatureChange}
-            signatureDataUrl={signatureDataUrl}
+            initialSignature={signatureDataUrl}
           />
         </div>
       )}
