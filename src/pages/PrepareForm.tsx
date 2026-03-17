@@ -6,7 +6,7 @@ import StickyNav from "@/components/landing/StickyNav";
 import Footer from "@/components/landing/Footer";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
 import { toast } from "sonner";
 import { prefillMS004, downloadPdfBlob } from "@/lib/prefillMS004";
 import type { MS004FormData } from "@/lib/prefillMS004";
