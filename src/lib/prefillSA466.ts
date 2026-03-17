@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
 import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
 export type SA466FormData = Record<string, string>;
