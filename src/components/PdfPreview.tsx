@@ -20,7 +20,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     try {
       setError(null);
       const pdfBytes = await prefillSA466(data, sigDataUrl);
-      const blob = new Blob([pdfBytes], { type: "application/pdf" });
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
 
       // Revoke previous URL
