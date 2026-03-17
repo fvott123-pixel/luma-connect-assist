@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { prefillSA466 } from "@/lib/prefillSA466";
 import SignaturePad from "./SignaturePad";
+import * as pdfjsLib from "pdfjs-dist";
+
+// Set worker source
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
 
 interface PdfPreviewProps {
   answers: Record<string, string>;
@@ -10,25 +14,38 @@ interface PdfPreviewProps {
 }
 
 const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUrl }: PdfPreviewProps) => {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pages, setPages] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const prevUrlRef = useRef<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const generatePreview = useCallback(async (data: Record<string, string>, sigDataUrl?: string | null) => {
     try {
       setError(null);
       const pdfBytes = await prefillSA466(data, sigDataUrl);
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
 
-      // Revoke previous URL
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
+      // Use pdf.js to render each page to canvas → dataURL
+      const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
+      const pdf = await loadingTask.promise;
+      const pageImages: string[] = [];
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const scale = 1.5;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d")!;
+
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        pageImages.push(canvas.toDataURL("image/png"));
       }
-      prevUrlRef.current = url;
-      setPdfUrl(url);
+
+      setPages(pageImages);
     } catch (err: any) {
       console.error("PDF preview error:", err);
       setError(err?.message || "Failed to generate PDF preview");
@@ -38,7 +55,6 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   }, []);
 
   useEffect(() => {
-    // Debounce regeneration to avoid hammering pdf-lib on every keystroke
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       generatePreview(answers, signatureDataUrl);
@@ -49,25 +65,39 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     };
   }, [answers, signatureDataUrl, generatePreview]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (prevUrlRef.current) {
-        URL.revokeObjectURL(prevUrlRef.current);
-      }
-    };
-  }, []);
-
   return (
     <div className="flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/50">
         <span className="text-xs font-bold text-foreground">📄 SA466 — Live PDF Preview</span>
-        {loading && (
-          <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        )}
+        <div className="flex items-center gap-2">
+          {pages.length > 0 && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                disabled={currentPage === 0}
+                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background text-foreground disabled:opacity-30"
+              >
+                ‹
+              </button>
+              <span className="text-[10px] text-muted-foreground">
+                {currentPage + 1} / {pages.length}
+              </span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))}
+                disabled={currentPage === pages.length - 1}
+                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background text-foreground disabled:opacity-30"
+              >
+                ›
+              </button>
+            </div>
+          )}
+          {loading && (
+            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 min-h-0 relative">
+      <div ref={containerRef} className="flex-1 min-h-0 relative overflow-auto bg-muted/20">
         {error ? (
           <div className="flex items-center justify-center h-full p-6 text-center">
             <div>
@@ -77,12 +107,14 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
               </p>
             </div>
           </div>
-        ) : pdfUrl ? (
-          <iframe
-            src={`${pdfUrl}#toolbar=1&navpanes=0`}
-            className="w-full h-full border-0"
-            title="SA466 PDF Preview"
-          />
+        ) : pages.length > 0 ? (
+          <div className="flex justify-center p-2">
+            <img
+              src={pages[currentPage]}
+              alt={`SA466 Page ${currentPage + 1}`}
+              className="max-w-full shadow-md"
+            />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
