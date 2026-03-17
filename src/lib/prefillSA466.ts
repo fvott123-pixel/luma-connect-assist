@@ -42,7 +42,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     throw new Error("Could not load SA466 PDF template.");
   }
 
-  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, password: "" });
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const fontSize = 11;
