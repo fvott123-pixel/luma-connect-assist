@@ -22,8 +22,6 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   const paths = [
     SUPABASE_PDF_URL,
     `/forms/SA466.pdf`,
-    `/forms/DSP/sa466en.pdf`,
-    `/forms/CUsersfvottDesktopGovernment%20Forms/Disability%20Support%20Pension/sa466en.pdf`,
   ];
 
   let pdfBytes: ArrayBuffer | null = null;
