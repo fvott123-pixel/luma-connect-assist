@@ -79,7 +79,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
           </div>
         ) : pdfUrl ? (
           <iframe
-            src={pdfUrl}
+            src={`${pdfUrl}#toolbar=1&navpanes=0`}
             className="w-full h-full border-0"
             title="SA466 PDF Preview"
           />
