@@ -57,18 +57,12 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     const page = pages[field.pageNumber];
     if (!page) continue;
 
-    // Use actual page dimensions — never assume 841
-    const { width, height } = page.getSize();
-
-    // Convert top-offset y to PDF bottom-left origin y
-    const toY = (topOffset: number) => height - topOffset;
-
     // Tick marks for select fields
     if (field.tickPositions && field.tickPositions[value]) {
       const pos = field.tickPositions[value];
       page.drawText("X", {
         x: pos.x,
-        y: toY(pos.y),
+        y: pos.y,
         size: 12,
         font: fontBold,
         color,
@@ -81,17 +75,17 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const parts = parseDateParts(value);
       if (parts) {
         const boxes = field.dateBoxes;
-        page.drawText(parts.dd, { x: boxes.ddX, y: toY(boxes.ddY), size: fontSize, font, color });
-        page.drawText(parts.mm, { x: boxes.mmX, y: toY(boxes.mmY), size: fontSize, font, color });
-        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: toY(boxes.yyyyY), size: fontSize, font, color });
+        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
+        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
         continue;
       }
     }
 
-    // Regular text at bottom-left origin coordinates
+    // Regular text — coordinates are bottom-left origin (0,0 = bottom-left)
     page.drawText(value, {
       x: field.x,
-      y: toY(field.y),
+      y: field.y,
       size: fontSize,
       font,
       color,
