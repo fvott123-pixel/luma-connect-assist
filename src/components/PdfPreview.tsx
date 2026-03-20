@@ -4,7 +4,6 @@ import SignaturePad from "./SignaturePad";
 import { SA466_FIELDS } from "@/lib/formMaps/sa466Fields";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Bundle worker locally — no CDN
 import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
@@ -22,15 +21,29 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   const [currentPage, setCurrentPage] = useState(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── FIX: jump to the page of the field Luma just answered ──
+  // ── Track which page the latest answered field lives on ──
+  // Use a ref so the value survives PDF re-renders without causing extra effects
+  const targetPageRef = useRef<number>(0);
+
+  // When Luma answers a field, record its page number
   useEffect(() => {
-    if (!scrollToField || pages.length === 0) return;
+    if (!scrollToField) return;
     const field = SA466_FIELDS.find(f => f.id === scrollToField);
-    if (field && field.pageNumber !== undefined) {
-      const targetPage = Math.min(field.pageNumber, pages.length - 1);
-      setCurrentPage(targetPage);
+    if (field !== undefined && field.pageNumber !== undefined) {
+      targetPageRef.current = field.pageNumber;
+      // If pages are already loaded, jump immediately
+      if (pages.length > 0) {
+        setCurrentPage(Math.min(field.pageNumber, pages.length - 1));
+      }
     }
-  }, [scrollToField, pages]);
+  }, [scrollToField]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // After PDF re-renders and pages update, jump to tracked target page
+  useEffect(() => {
+    if (pages.length > 0) {
+      setCurrentPage(Math.min(targetPageRef.current, pages.length - 1));
+    }
+  }, [pages]);
 
   const generatePreview = useCallback(async (data: Record<string, string>, sigDataUrl?: string | null) => {
     try {
@@ -95,12 +108,12 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         </div>
       </div>
 
-      {/* PDF page display */}
+      {/* PDF display */}
       <div className="flex-1 min-h-0 overflow-auto bg-muted/20">
         {error ? (
           <div className="flex items-center justify-center h-full p-6 text-center">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">📄 Preparing PDF preview…</p>
+              <p className="text-sm font-medium text-muted-foreground">📄 Preparing PDF…</p>
               <p className="mt-1 text-xs text-muted-foreground">Your answers are saved. Download will work when complete.</p>
             </div>
           </div>
