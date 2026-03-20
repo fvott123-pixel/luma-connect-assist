@@ -66,7 +66,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       generatePreview(answers, signatureDataUrl);
-    }, 800);
+    }, 2000);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [answers, signatureDataUrl, generatePreview]);
 
