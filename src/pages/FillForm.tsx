@@ -207,7 +207,7 @@ const FillForm = () => {
           </div>
         )}
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="flex flex-col min-h-[400px] lg:min-h-0 overflow-hidden">
             <ErrorBoundary label="Chat">
               <FormFillingChat
