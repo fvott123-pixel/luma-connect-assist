@@ -25,78 +25,81 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const targetPageRef = useRef<number>(0);
   const renderingRef = useRef(false);
+  const lastAnswersRef = useRef<string>("");
 
-  // When Luma answers a field, jump to its page
+  // When Luma answers a field, record the page to jump to
   useEffect(() => {
     if (!scrollToField) return;
     const field = SA466_FIELDS.find(f => f.id === scrollToField);
     if (field?.pageNumber !== undefined) {
       targetPageRef.current = field.pageNumber;
-      setCurrentPage(field.pageNumber);
+      if (pdfDocRef.current) {
+        const target = Math.min(field.pageNumber, (pdfDocRef.current.numPages || 37) - 1);
+        setCurrentPage(target);
+      }
     }
-  }, [scrollToField]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [scrollToField]); // eslint-disable-line
 
-  // Render a single page to canvas
+  // Render a single page
   const renderPage = useCallback(async (doc: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
     if (renderingRef.current) return;
     renderingRef.current = true;
     try {
-      const page = await doc.getPage(pageNum + 1); // pdfjs is 1-indexed
+      const page = await doc.getPage(pageNum + 1);
       const scale = 1.5;
       const viewport = page.getViewport({ scale });
       const canvas = document.createElement("canvas");
       canvas.width = viewport.width;
       canvas.height = viewport.height;
-      const ctx = canvas.getContext("2d")!;
-      await page.render({ canvasContext: ctx, viewport }).promise;
+      await page.render({ canvasContext: canvas.getContext("2d")!, viewport }).promise;
       setPageImage(canvas.toDataURL("image/jpeg", 0.85));
-    } catch (err) {
-      console.error("Page render error:", err);
     } finally {
       renderingRef.current = false;
     }
   }, []);
 
-  // Regenerate the filled PDF and render current page only
-  const generateAndRender = useCallback(async (
-    data: Record<string, string>,
-    sigDataUrl: string | null | undefined,
-    pageNum: number
-  ) => {
-    try {
-      setError(null);
-      setLoading(true);
-
-      const pdfBytes = await prefillSA466(data, sigDataUrl);
-
-      // Load the PDF document (reuse if possible)
-      const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
-      const doc = await loadingTask.promise;
-      pdfDocRef.current = doc;
-      setTotalPages(doc.numPages);
-
-      // Render only the current page
-      await renderPage(doc, Math.min(pageNum, doc.numPages - 1));
-    } catch (err: any) {
-      console.error("PDF preview error:", err);
-      setError(err?.message || "Failed to generate PDF preview");
-    } finally {
-      setLoading(false);
-    }
-  }, [renderPage]);
-
-  // Re-render when page changes (without regenerating PDF)
+  // Re-render current page when user manually flips pages
   useEffect(() => {
     if (!pdfDocRef.current) return;
     renderPage(pdfDocRef.current, currentPage);
   }, [currentPage, renderPage]);
 
-  // Debounced re-generation when answers change
+  // Generate filled PDF and render — debounced, skip if answers haven't changed
+  const generateAndRender = useCallback(async (
+    data: Record<string, string>,
+    sigDataUrl: string | null | undefined,
+    pageNum: number
+  ) => {
+    const answersKey = JSON.stringify(data) + (sigDataUrl || "");
+    if (answersKey === lastAnswersRef.current && pdfDocRef.current) {
+      // Answers unchanged — just re-render current page
+      renderPage(pdfDocRef.current, pageNum);
+      return;
+    }
+    lastAnswersRef.current = answersKey;
+
+    try {
+      setError(null);
+      setLoading(true);
+      const pdfBytes = await prefillSA466(data, sigDataUrl);
+      const doc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
+      pdfDocRef.current = doc;
+      setTotalPages(doc.numPages);
+      await renderPage(doc, Math.min(pageNum, doc.numPages - 1));
+    } catch (err: any) {
+      console.error("PDF preview error:", err);
+      setError(err?.message || "Failed to generate preview");
+    } finally {
+      setLoading(false);
+    }
+  }, [renderPage]);
+
+  // Trigger on answers change — 3 second debounce so it doesn't fire mid-sentence
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       generateAndRender(answers, signatureDataUrl, targetPageRef.current);
-    }, 1500);
+    }, 3000);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [answers, signatureDataUrl, generateAndRender]);
 
@@ -104,7 +107,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     <div className="flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/50 shrink-0">
-        <span className="text-xs font-bold text-foreground">📄 SA466 — Live PDF Preview</span>
+        <span className="text-xs font-bold text-foreground">📄 SA466 — Live Preview</span>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1">
             <button
@@ -123,22 +126,15 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         </div>
       </div>
 
-      {/* PDF display */}
+      {/* PDF page */}
       <div className="flex-1 min-h-0 overflow-auto bg-muted/20">
         {error ? (
-          <div className="flex items-center justify-center h-full p-6 text-center">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">📄 Preparing PDF…</p>
-              <p className="mt-1 text-xs text-muted-foreground">Your answers are saved. Download will work when complete.</p>
-            </div>
+          <div className="flex items-center justify-center h-full p-4 text-center">
+            <p className="text-xs text-muted-foreground">PDF preview updating…<br/>Your answers are saved.</p>
           </div>
         ) : pageImage ? (
           <div className="flex justify-center p-2">
-            <img
-              src={pageImage}
-              alt={`SA466 Page ${currentPage + 1}`}
-              className="max-w-full shadow-md"
-            />
+            <img src={pageImage} alt={`Page ${currentPage + 1}`} className="max-w-full shadow-md" />
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -153,7 +149,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
       {/* Signature */}
       {onSignatureChange && (
         <div className="border-t border-border px-4 py-3 bg-muted/30 shrink-0">
-          <p className="text-[11px] font-bold text-foreground mb-2">✍️ Your Signature</p>
+          <p className="text-[11px] font-bold text-foreground mb-2">✍️ Signature</p>
           <SignaturePad onSignatureChange={onSignatureChange} initialSignature={signatureDataUrl} />
         </div>
       )}

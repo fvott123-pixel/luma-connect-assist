@@ -3,60 +3,63 @@ import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
 export type SA466FormData = Record<string, string>;
 
-// Correct path to the PDF template
+// ── Cache: fetch template PDF once, reuse forever ──
+let _templateCache: ArrayBuffer | null = null;
+
 const PDF_PATHS = [
   "/forms/DSP/sa466en.pdf",
   "/forms/CUsersfvottDesktopGovernment Forms/Disability Support Pension/sa466en.pdf",
 ];
 
-// Values that mean "no answer" — never write these to the PDF
+async function getTemplate(): Promise<ArrayBuffer> {
+  if (_templateCache) return _templateCache;
+  for (const url of PDF_PATHS) {
+    try {
+      const res = await fetch(url);
+      if (res.ok) {
+        _templateCache = await res.arrayBuffer();
+        console.log("SA466 template cached from:", url, `(${Math.round(_templateCache.byteLength / 1024)}KB)`);
+        return _templateCache;
+      }
+    } catch (e) {
+      console.warn("SA466 fetch error:", url, e);
+    }
+  }
+  throw new Error("Could not load SA466 PDF template.");
+}
+
+// Values that mean "no answer" — never write to PDF
 const SKIP_VALUES = new Set([
   "none", "skip", "n/a", "na", "no answer", "not applicable",
-  "-", "--", ".", "..", "...", "nil", "null", "undefined",
+  "-", "--", ".", "..", "...", "nil", "null", "undefined", "n",
 ]);
 
-function shouldSkipValue(value: string, fieldType: string): boolean {
+function shouldSkip(value: string, fieldType: string): boolean {
   if (!value || value.trim() === "") return true;
   const v = value.trim().toLowerCase();
   if (SKIP_VALUES.has(v)) return true;
-  // For text fields only: "no" means "I don't have this" — skip it
-  // For select/tick fields: "No" is a valid answer (ticked checkbox)
-  if (fieldType === "text" && (v === "no" || v === "n")) return true;
+  // For text fields: "no" means the user doesn't have this — skip it
+  // For select/tick: "No" is a valid tick mark
+  if (fieldType === "text" && v === "no") return true;
   return false;
 }
 
 function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
   const m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (m) {
-    return {
-      dd: m[1].padStart(2, "0"),
-      mm: m[2].padStart(2, "0"),
-      yyyy: m[3].length === 2 ? `19${m[3]}` : m[3],
-    };
-  }
-  return null;
+  if (!m) return null;
+  return {
+    dd: m[1].padStart(2, "0"),
+    mm: m[2].padStart(2, "0"),
+    yyyy: m[3].length === 2 ? `19${m[3]}` : m[3],
+  };
 }
 
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
-  let pdfBytes: ArrayBuffer | null = null;
+  // Load template (cached after first call)
+  const templateBytes = await getTemplate();
 
-  for (const url of PDF_PATHS) {
-    try {
-      const res = await fetch(url);
-      if (res.ok) {
-        pdfBytes = await res.arrayBuffer();
-        console.log("Loaded SA466 PDF from:", url);
-        break;
-      }
-    } catch (err) {
-      console.warn("SA466 fetch error for", url, err);
-    }
-  }
-
-  if (!pdfBytes) {
-    throw new Error("Could not load SA466 PDF template. Check that /forms/DSP/sa466en.pdf exists.");
-  }
-
+  // Copy the template bytes so we can modify without corrupting the cache
+  const pdfBytes = templateBytes.slice(0);
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, password: "" });
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -66,93 +69,64 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
 
   for (const field of SA466_FIELDS) {
     const value = data[field.id];
-
-    // Skip declaration/signature fields
     if (field.id === "declarationComplete" || field.id === "declarationSignature") continue;
-
-    // Skip empty or skip-value answers
-    if (!value || shouldSkipValue(value, field.fieldType)) continue;
-
-    // Skip postalAddress if postalAddressSame is "Yes"
+    if (!value || shouldSkip(value, field.fieldType)) continue;
     if (field.id === "postalAddress" && data["postalAddressSame"]?.toLowerCase() === "yes") continue;
-
-    // Skip postalAddressSame field entirely — no checkbox exists
     if (field.id === "postalAddressSame") continue;
 
     const page = pages[field.pageNumber];
     if (!page) continue;
 
-    // ── Tick mark for select fields ──
-    if (field.tickPositions && field.tickPositions[value]) {
+    // Tick marks
+    if (field.tickPositions) {
       const pos = field.tickPositions[value];
-      page.drawText("✓", {
-        x: pos.x,
-        y: pos.y,
-        size: 9,
-        font: fontBold,
-        color,
-      });
-      continue;
+      if (pos) {
+        page.drawText("✓", { x: pos.x, y: pos.y, size: 9, font: fontBold, color });
+        continue;
+      }
     }
 
-    // ── Date fields ──
+    // Date fields
     if (field.fieldType === "date" && field.dateBoxes) {
       const parts = parseDateParts(value);
       if (parts) {
-        const boxes = field.dateBoxes;
-        page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
-        page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
-        page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
+        const b = field.dateBoxes;
+        page.drawText(parts.dd,   { x: b.ddX,   y: b.ddY,   size: fontSize, font, color });
+        page.drawText(parts.mm,   { x: b.mmX,   y: b.mmY,   size: fontSize, font, color });
+        page.drawText(parts.yyyy, { x: b.yyyyX, y: b.yyyyY, size: fontSize, font, color });
       }
       continue;
     }
 
-    // ── Text fields ──
-    const displayValue = String(value).trim();
-    if (!displayValue) continue;
+    // Text fields
+    const text = value.trim();
+    if (!text) continue;
 
     const maxWidth = field.maxWidth || 220;
-    const charWidth = fontSize * 0.55;
-    const maxChars = Math.floor(maxWidth / charWidth);
+    const charsPerLine = Math.floor(maxWidth / (fontSize * 0.55));
 
-    if (displayValue.length > maxChars) {
-      // Wrap long text into multiple lines
-      const words = displayValue.split(" ");
+    if (text.length > charsPerLine) {
+      const words = text.split(" ");
       const lines: string[] = [];
-      let current = "";
-
+      let cur = "";
       for (const word of words) {
-        if ((current + " " + word).trim().length <= maxChars) {
-          current = (current + " " + word).trim();
+        if ((cur + " " + word).trim().length <= charsPerLine) {
+          cur = (cur + " " + word).trim();
         } else {
-          if (current) lines.push(current);
-          current = word;
+          if (cur) lines.push(cur);
+          cur = word;
         }
       }
-      if (current) lines.push(current);
-
-      const lineHeight = fontSize + 3;
+      if (cur) lines.push(cur);
       lines.forEach((line, i) => {
-        page.drawText(line, {
-          x: field.x,
-          y: field.y - i * lineHeight,
-          size: fontSize,
-          font,
-          color,
-        });
+        page.drawText(line, { x: field.x, y: field.y - i * (fontSize + 3), size: fontSize, font, color });
       });
     } else {
-      page.drawText(displayValue, {
-        x: field.x,
-        y: field.y,
-        size: fontSize,
-        font,
-        color,
-      });
+      page.drawText(text, { x: field.x, y: field.y, size: fontSize, font, color });
     }
   }
 
-  // Embed signature if provided
+  // Signature
   if (signatureDataUrl) {
     try {
       const base64 = signatureDataUrl.split(",")[1];
@@ -160,16 +134,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       const sigImage = await pdfDoc.embedPng(sigBytes);
       const lastPage = pages[pages.length - 1];
       if (lastPage) {
-        const { width: pageWidth } = lastPage.getSize();
-        lastPage.drawImage(sigImage, {
-          x: pageWidth - 220,
-          y: 80,
-          width: 160,
-          height: 50,
-        });
+        const { width: pw } = lastPage.getSize();
+        lastPage.drawImage(sigImage, { x: pw - 220, y: 80, width: 160, height: 50 });
       }
     } catch (e) {
-      console.warn("Could not embed signature:", e);
+      console.warn("Signature embed failed:", e);
     }
   }
 
