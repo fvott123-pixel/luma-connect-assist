@@ -3,8 +3,9 @@ import { prefillSA466 } from "@/lib/prefillSA466";
 import SignaturePad from "./SignaturePad";
 import * as pdfjsLib from "pdfjs-dist";
 
-// ── FIX: use .min.js (not .mjs) — broader CDN compatibility ──
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// ── FIX: bundle worker locally via Vite ?url import — no CDN needed ──
+import workerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 interface PdfPreviewProps {
   answers: Record<string, string>;
@@ -27,7 +28,6 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
       setLoading(true);
       const pdfBytes = await prefillSA466(data, sigDataUrl);
 
-      // Use pdf.js to render each page to canvas → dataURL
       const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
       const pdf = await loadingTask.promise;
       const pageImages: string[] = [];
@@ -36,12 +36,10 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         const page = await pdf.getPage(i);
         const scale = 1.5;
         const viewport = page.getViewport({ scale });
-
         const canvas = document.createElement("canvas");
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         const ctx = canvas.getContext("2d")!;
-
         await page.render({ canvasContext: ctx, viewport }).promise;
         pageImages.push(canvas.toDataURL("image/png"));
       }
@@ -60,10 +58,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     debounceRef.current = setTimeout(() => {
       generatePreview(answers, signatureDataUrl);
     }, 600);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [answers, signatureDataUrl, generatePreview]);
 
   return (
@@ -73,28 +68,14 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         <div className="flex items-center gap-2">
           {pages.length > 0 && (
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                disabled={currentPage === 0}
-                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background text-foreground disabled:opacity-30"
-              >
-                ‹
-              </button>
-              <span className="text-[10px] text-muted-foreground">
-                {currentPage + 1} / {pages.length}
-              </span>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))}
-                disabled={currentPage === pages.length - 1}
-                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background text-foreground disabled:opacity-30"
-              >
-                ›
-              </button>
+              <button onClick={() => setCurrentPage(p => Math.max(0, p - 1))} disabled={currentPage === 0}
+                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30">‹</button>
+              <span className="text-[10px] text-muted-foreground">{currentPage + 1} / {pages.length}</span>
+              <button onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))} disabled={currentPage === pages.length - 1}
+                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30">›</button>
             </div>
           )}
-          {loading && (
-            <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          )}
+          {loading && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
         </div>
       </div>
 
@@ -102,22 +83,13 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         {error ? (
           <div className="flex items-center justify-center h-full p-6 text-center">
             <div>
-              <p className="text-sm font-medium text-destructive">⚠️ PDF Preview Unavailable</p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {error}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Your answers are still being saved. Download will work when complete.
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">📄 PDF preview loading…</p>
+              <p className="mt-1 text-xs text-muted-foreground">Your answers are being saved. Download will work when complete.</p>
             </div>
           </div>
         ) : pages.length > 0 ? (
           <div className="flex justify-center p-2">
-            <img
-              src={pages[currentPage]}
-              alt={`SA466 Page ${currentPage + 1}`}
-              className="max-w-full shadow-md"
-            />
+            <img src={pages[currentPage]} alt={`SA466 Page ${currentPage + 1}`} className="max-w-full shadow-md" />
           </div>
         ) : (
           <div className="flex items-center justify-center h-full">
@@ -129,14 +101,10 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         )}
       </div>
 
-      {/* Signature pad at the bottom */}
       {onSignatureChange && (
         <div className="border-t border-border px-4 py-3 bg-muted/30">
           <p className="text-[11px] font-bold text-foreground mb-2">✍️ Your Signature</p>
-          <SignaturePad
-            onSignatureChange={onSignatureChange}
-            initialSignature={signatureDataUrl}
-          />
+          <SignaturePad onSignatureChange={onSignatureChange} initialSignature={signatureDataUrl} />
         </div>
       )}
     </div>
