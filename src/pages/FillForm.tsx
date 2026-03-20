@@ -6,6 +6,7 @@ import Footer from "@/components/landing/Footer";
 import DocumentVault from "@/components/DocumentVault";
 import FormFillingChat from "@/components/FormFillingChat";
 import PdfPreview from "@/components/PdfPreview";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { toast } from "sonner";
 import { loadSession, loadSessionByCode, clearSession, type FormSession } from "@/lib/formSession";
@@ -20,18 +21,20 @@ const FillForm = () => {
   const navigate = useNavigate();
   const { dir, t } = useLanguage();
 
-  // ── FIX: initialise phase synchronously — never call setPhase during render ──
   const [phase, setPhase] = useState<"vault" | "resume" | "filling">(() => {
     if (!slug) return "vault";
-    const saved = loadSession(slug);
-    if (saved && Object.keys(saved.answers).length > 0) return "resume";
+    try {
+      const saved = loadSession(slug);
+      if (saved && Object.keys(saved.answers).length > 0) return "resume";
+    } catch (e) {
+      console.warn("Could not load session:", e);
+    }
     return "vault";
   });
 
-  // ── FIX: load saved session once synchronously ──
   const [savedSession] = useState<FormSession | null>(() => {
     if (!slug) return null;
-    return loadSession(slug);
+    try { return loadSession(slug); } catch { return null; }
   });
 
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
@@ -52,7 +55,7 @@ const FillForm = () => {
   if (!slug || !serviceNames[slug]) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-        <p className="text-lg text-foreground">This form is not yet available for Luma's guided filling.</p>
+        <p className="text-lg text-foreground">This form is not yet available.</p>
         <button onClick={() => navigate("/")} className="mt-4 text-sm font-bold text-primary underline">
           Go back home
         </button>
@@ -67,29 +70,25 @@ const FillForm = () => {
     setPhase("filling");
   };
 
-  const handleSkipVault = () => {
-    setPhase("filling");
-  };
+  const handleSkipVault = () => setPhase("filling");
 
   const handleDownloadClick = async () => {
     setIsGenerating(true);
     try {
-      console.log("Starting pdf-lib PDF generation with answers:", Object.keys(answers).length);
       const pdfBytes = await prefillSA466(answers, signatureDataUrl);
       const today = new Date().toLocaleDateString("en-AU").replace(/\//g, "-");
       downloadPdf(pdfBytes, `SA466-DSP-completed-${today}.pdf`);
-      console.log("PDF download triggered successfully");
       clearSession(slug);
       setDownloadComplete(true);
     } catch (err: any) {
       console.error("PDF generation error:", err?.message, err?.stack);
-      toast.error("Could not generate PDF. Please try again.");
+      toast.error("Could not generate PDF: " + (err?.message || "Unknown error"));
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // ── Resume prompt phase ──
+  // ── Resume phase ──
   if (phase === "resume") {
     return (
       <div className="min-h-screen bg-background" dir={dir}>
@@ -100,14 +99,14 @@ const FillForm = () => {
             <span className="text-5xl">👋</span>
             <h2 className="mt-4 font-serif text-xl font-bold text-foreground">Welcome back!</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              I saved your progress last time — you answered{" "}
+              I saved your progress — you answered{" "}
               <span className="font-bold text-foreground">
                 {Object.keys(savedSession?.answers || {}).filter(k => {
                   const v = savedSession?.answers[k];
                   return v && v.toLowerCase() !== "none";
                 }).length}
               </span>{" "}
-              questions. Would you like to continue where you left off?
+              questions. Continue where you left off?
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
               Session code: <span className="font-mono font-bold text-foreground">{savedSession?.sessionCode}</span>
@@ -115,47 +114,34 @@ const FillForm = () => {
             <div className="mt-6 flex justify-center gap-3">
               <button
                 onClick={() => {
-                  if (savedSession) {
-                    setResumedSession(savedSession);
-                    setAnswers(savedSession.answers);
-                  }
+                  if (savedSession) { setResumedSession(savedSession); setAnswers(savedSession.answers); }
                   setPhase("filling");
                 }}
-                className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+                className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground hover:opacity-90"
               >
                 ✅ Yes, continue
               </button>
               <button
-                onClick={() => {
-                  clearSession(slug);
-                  setPhase("vault");
-                }}
-                className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-muted"
+                onClick={() => { clearSession(slug); setPhase("vault"); }}
+                className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground hover:bg-muted"
               >
                 🔄 Start fresh
               </button>
             </div>
-
             <div className="mt-8 border-t border-border pt-6">
-              <p className="text-xs text-muted-foreground mb-2">Or recover a different session with a code:</p>
+              <p className="text-xs text-muted-foreground mb-2">Or recover a session by code:</p>
               <div className="flex gap-2 justify-center">
                 <input
                   value={recoveryCode}
                   onChange={e => setRecoveryCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="6-digit code"
-                  className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   onClick={() => {
                     const found = loadSessionByCode(recoveryCode);
-                    if (found) {
-                      setResumedSession(found);
-                      setAnswers(found.answers);
-                      setPhase("filling");
-                      toast.success("Session recovered! Continuing your form.");
-                    } else {
-                      toast.error("No session found with that code.");
-                    }
+                    if (found) { setResumedSession(found); setAnswers(found.answers); setPhase("filling"); toast.success("Session recovered!"); }
+                    else toast.error("No session found.");
                   }}
                   disabled={recoveryCode.length !== 6}
                   className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
@@ -171,7 +157,7 @@ const FillForm = () => {
     );
   }
 
-  // ── Vault (document upload) phase ──
+  // ── Vault phase ──
   if (phase === "vault") {
     return (
       <div className="min-h-screen bg-background" dir={dir}>
@@ -182,7 +168,9 @@ const FillForm = () => {
             ← Back
           </button>
           <div className="rounded-2xl border border-border bg-card shadow-sm">
-            <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} />
+            <ErrorBoundary label="Document Vault">
+              <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} />
+            </ErrorBoundary>
           </div>
         </main>
         <Footer />
@@ -204,65 +192,64 @@ const FillForm = () => {
             <button
               onClick={handleDownloadClick}
               disabled={isGenerating}
-              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50 shadow-lg"
+              className="flex items-center gap-2 rounded-xl bg-primary px-6 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50 shadow-lg"
             >
-              {isGenerating && (
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              )}
+              {isGenerating && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />}
               {isGenerating ? t("form.generating") : t("form.downloadPdf")}
             </button>
           )}
         </div>
 
-        {/* Extraction summary banner */}
         {extractionSummary.length > 0 && (
           <div className="mb-2 rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 px-4 py-2">
             <p className="text-[11px] font-bold text-foreground">{t("form.prefilledBanner")}</p>
-            {extractionSummary.map((s, i) => (
-              <p key={i} className="text-[10px] text-foreground/70">✅ {s}</p>
-            ))}
+            {extractionSummary.map((s, i) => <p key={i} className="text-[10px] text-foreground/70">✅ {s}</p>)}
           </div>
         )}
 
         <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-4">
           <div className="flex flex-col min-h-[400px] lg:min-h-0 overflow-hidden">
-            <FormFillingChat
-              serviceSlug={slug}
-              prefilled={prefilled}
-              onAnswersChange={handleAnswersChange}
-              onComplete={() => setIsComplete(true)}
-              onFieldAnswered={setLastAnsweredField}
-              resumedAnswers={resumedSession?.answers}
-              resumedFieldIndex={resumedSession?.fieldIndex}
-            />
+            <ErrorBoundary label="Chat">
+              <FormFillingChat
+                serviceSlug={slug}
+                prefilled={prefilled}
+                onAnswersChange={handleAnswersChange}
+                onComplete={() => setIsComplete(true)}
+                onFieldAnswered={setLastAnsweredField}
+                resumedAnswers={resumedSession?.answers}
+                resumedFieldIndex={resumedSession?.fieldIndex}
+              />
+            </ErrorBoundary>
           </div>
-          <div id="form-preview-panel" className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
-            <PdfPreview answers={answers} scrollToField={lastAnsweredField} onSignatureChange={setSignatureDataUrl} signatureDataUrl={signatureDataUrl} />
+          <div className="flex flex-col min-h-[350px] lg:min-h-0 overflow-hidden">
+            <ErrorBoundary label="PDF Preview" fallback={
+              <div className="flex flex-col items-center justify-center h-full rounded-xl border border-border bg-card p-6 text-center">
+                <span className="text-3xl">📄</span>
+                <p className="mt-3 text-sm font-bold text-foreground">PDF preview unavailable</p>
+                <p className="mt-1 text-xs text-muted-foreground">Your answers are still being saved. You can download when complete.</p>
+              </div>
+            }>
+              <PdfPreview
+                answers={answers}
+                scrollToField={lastAnsweredField}
+                onSignatureChange={setSignatureDataUrl}
+                signatureDataUrl={signatureDataUrl}
+              />
+            </ErrorBoundary>
           </div>
         </div>
 
-        {/* Post-download success message */}
         {downloadComplete && (
           <div className="mb-2 rounded-2xl border border-primary/20 bg-card p-6 text-center shadow-md">
             <span className="text-4xl">🎉</span>
-            <p className="mt-3 text-sm font-medium text-foreground leading-relaxed">{t("form.downloadSuccess")}</p>
+            <p className="mt-3 text-sm font-medium text-foreground">{t("form.downloadSuccess")}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-3">
-              <button
-                onClick={() => toast.info("Email feature coming soon!")}
-                className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold text-foreground transition-all hover:bg-muted"
-              >
+              <button onClick={() => toast.info("Email feature coming soon!")} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">
                 {t("form.emailToSelf")}
               </button>
               <button
-                onClick={() => {
-                  clearSession(slug);
-                  setDownloadComplete(false);
-                  setIsComplete(false);
-                  setAnswers({});
-                  setPrefilled({});
-                  setPhase("vault");
-                }}
-                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+                onClick={() => { clearSession(slug); setDownloadComplete(false); setIsComplete(false); setAnswers({}); setPrefilled({}); setPhase("vault"); }}
+                className="rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-primary-foreground hover:opacity-90"
               >
                 {t("form.startOver")}
               </button>
