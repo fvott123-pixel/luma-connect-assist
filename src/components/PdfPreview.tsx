@@ -15,73 +15,90 @@ interface PdfPreviewProps {
 }
 
 const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUrl }: PdfPreviewProps) => {
-  const [pages, setPages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(37);
+  const [pageImage, setPageImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
+
+  const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Track which page the latest answered field lives on ──
-  // Use a ref so the value survives PDF re-renders without causing extra effects
   const targetPageRef = useRef<number>(0);
+  const renderingRef = useRef(false);
 
-  // When Luma answers a field, record its page number
+  // When Luma answers a field, jump to its page
   useEffect(() => {
     if (!scrollToField) return;
     const field = SA466_FIELDS.find(f => f.id === scrollToField);
-    if (field !== undefined && field.pageNumber !== undefined) {
+    if (field?.pageNumber !== undefined) {
       targetPageRef.current = field.pageNumber;
-      // If pages are already loaded, jump immediately
-      if (pages.length > 0) {
-        setCurrentPage(Math.min(field.pageNumber, pages.length - 1));
-      }
+      setCurrentPage(field.pageNumber);
     }
   }, [scrollToField]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // After PDF re-renders and pages update, jump to tracked target page
-  useEffect(() => {
-    if (pages.length > 0) {
-      setCurrentPage(Math.min(targetPageRef.current, pages.length - 1));
+  // Render a single page to canvas
+  const renderPage = useCallback(async (doc: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
+    if (renderingRef.current) return;
+    renderingRef.current = true;
+    try {
+      const page = await doc.getPage(pageNum + 1); // pdfjs is 1-indexed
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d")!;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      setPageImage(canvas.toDataURL("image/jpeg", 0.85));
+    } catch (err) {
+      console.error("Page render error:", err);
+    } finally {
+      renderingRef.current = false;
     }
-  }, [pages]);
+  }, []);
 
-  const generatePreview = useCallback(async (data: Record<string, string>, sigDataUrl?: string | null) => {
+  // Regenerate the filled PDF and render current page only
+  const generateAndRender = useCallback(async (
+    data: Record<string, string>,
+    sigDataUrl: string | null | undefined,
+    pageNum: number
+  ) => {
     try {
       setError(null);
       setLoading(true);
+
       const pdfBytes = await prefillSA466(data, sigDataUrl);
+
+      // Load the PDF document (reuse if possible)
       const loadingTask = pdfjsLib.getDocument({ data: pdfBytes });
-      const pdf = await loadingTask.promise;
-      const pageImages: string[] = [];
+      const doc = await loadingTask.promise;
+      pdfDocRef.current = doc;
+      setTotalPages(doc.numPages);
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const scale = 1.5;
-        const viewport = page.getViewport({ scale });
-        const canvas = document.createElement("canvas");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        const ctx = canvas.getContext("2d")!;
-        await page.render({ canvasContext: ctx, viewport }).promise;
-        pageImages.push(canvas.toDataURL("image/png"));
-      }
-
-      setPages(pageImages);
+      // Render only the current page
+      await renderPage(doc, Math.min(pageNum, doc.numPages - 1));
     } catch (err: any) {
       console.error("PDF preview error:", err);
       setError(err?.message || "Failed to generate PDF preview");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [renderPage]);
 
+  // Re-render when page changes (without regenerating PDF)
+  useEffect(() => {
+    if (!pdfDocRef.current) return;
+    renderPage(pdfDocRef.current, currentPage);
+  }, [currentPage, renderPage]);
+
+  // Debounced re-generation when answers change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      generatePreview(answers, signatureDataUrl);
-    }, 2000);
+      generateAndRender(answers, signatureDataUrl, targetPageRef.current);
+    }, 1500);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [answers, signatureDataUrl, generatePreview]);
+  }, [answers, signatureDataUrl, generateAndRender]);
 
   return (
     <div className="flex flex-col h-full rounded-xl border border-border bg-card overflow-hidden">
@@ -89,21 +106,19 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
       <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/50 shrink-0">
         <span className="text-xs font-bold text-foreground">📄 SA466 — Live PDF Preview</span>
         <div className="flex items-center gap-2">
-          {pages.length > 0 && (
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                disabled={currentPage === 0}
-                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
-              >‹</button>
-              <span className="text-[10px] text-muted-foreground">{currentPage + 1} / {pages.length}</span>
-              <button
-                onClick={() => setCurrentPage(p => Math.min(pages.length - 1, p + 1))}
-                disabled={currentPage === pages.length - 1}
-                className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
-              >›</button>
-            </div>
-          )}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
+            >‹</button>
+            <span className="text-[10px] text-muted-foreground">{currentPage + 1} / {totalPages}</span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage === totalPages - 1}
+              className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
+            >›</button>
+          </div>
           {loading && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
         </div>
       </div>
@@ -117,10 +132,10 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
               <p className="mt-1 text-xs text-muted-foreground">Your answers are saved. Download will work when complete.</p>
             </div>
           </div>
-        ) : pages.length > 0 ? (
+        ) : pageImage ? (
           <div className="flex justify-center p-2">
             <img
-              src={pages[currentPage]}
+              src={pageImage}
               alt={`SA466 Page ${currentPage + 1}`}
               className="max-w-full shadow-md"
             />
@@ -129,7 +144,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
               <span className="inline-block h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              <p className="mt-2 text-xs text-muted-foreground">Loading government form…</p>
+              <p className="mt-2 text-xs text-muted-foreground">Loading form…</p>
             </div>
           </div>
         )}
