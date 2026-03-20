@@ -3,8 +3,8 @@ import { prefillSA466 } from "@/lib/prefillSA466";
 import SignaturePad from "./SignaturePad";
 import * as pdfjsLib from "pdfjs-dist";
 
-// Set worker source
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+// ── FIX: use .min.js (not .mjs) — broader CDN compatibility ──
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface PdfPreviewProps {
   answers: Record<string, string>;
@@ -24,6 +24,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   const generatePreview = useCallback(async (data: Record<string, string>, sigDataUrl?: string | null) => {
     try {
       setError(null);
+      setLoading(true);
       const pdfBytes = await prefillSA466(data, sigDataUrl);
 
       // Use pdf.js to render each page to canvas → dataURL
@@ -101,9 +102,12 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
         {error ? (
           <div className="flex items-center justify-center h-full p-6 text-center">
             <div>
-              <p className="text-sm font-medium text-destructive">⚠️ {error}</p>
+              <p className="text-sm font-medium text-destructive">⚠️ PDF Preview Unavailable</p>
               <p className="mt-2 text-xs text-muted-foreground">
-                The PDF template could not be loaded. Check that the file exists in storage.
+                {error}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Your answers are still being saved. Download will work when complete.
               </p>
             </div>
           </div>

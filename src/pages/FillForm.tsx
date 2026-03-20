@@ -20,7 +20,20 @@ const FillForm = () => {
   const navigate = useNavigate();
   const { dir, t } = useLanguage();
 
-  const [phase, setPhase] = useState<"resume-check" | "vault" | "filling">("resume-check");
+  // ── FIX: initialise phase synchronously — never call setPhase during render ──
+  const [phase, setPhase] = useState<"vault" | "resume" | "filling">(() => {
+    if (!slug) return "vault";
+    const saved = loadSession(slug);
+    if (saved && Object.keys(saved.answers).length > 0) return "resume";
+    return "vault";
+  });
+
+  // ── FIX: load saved session once synchronously ──
+  const [savedSession] = useState<FormSession | null>(() => {
+    if (!slug) return null;
+    return loadSession(slug);
+  });
+
   const [prefilled, setPrefilled] = useState<Record<string, string>>({});
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isComplete, setIsComplete] = useState(false);
@@ -45,89 +58,6 @@ const FillForm = () => {
         </button>
       </div>
     );
-  }
-
-  // Check for saved session on first render
-  if (phase === "resume-check") {
-    const saved = loadSession(slug);
-    if (saved && Object.keys(saved.answers).length > 0) {
-      return (
-        <div className="min-h-screen bg-background" dir={dir}>
-          <TopBar />
-          <StickyNav />
-          <main className="mx-auto max-w-lg px-4 py-16">
-            <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
-              <span className="text-5xl">👋</span>
-              <h2 className="mt-4 font-serif text-xl font-bold text-foreground">Welcome back!</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                I saved your progress last time — you answered{" "}
-                <span className="font-bold text-foreground">
-                  {Object.keys(saved.answers).filter(k => saved.answers[k] && saved.answers[k].toLowerCase() !== "none").length}
-                </span>{" "}
-                questions. Would you like to continue where you left off?
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Session code: <span className="font-mono font-bold text-foreground">{saved.sessionCode}</span>
-              </p>
-              <div className="mt-6 flex justify-center gap-3">
-                <button
-                  onClick={() => {
-                    setResumedSession(saved);
-                    setAnswers(saved.answers);
-                    setPhase("filling");
-                  }}
-                  className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
-                >
-                  ✅ Yes, continue
-                </button>
-                <button
-                  onClick={() => {
-                    clearSession(slug);
-                    setPhase("vault");
-                  }}
-                  className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-muted"
-                >
-                  🔄 Start fresh
-                </button>
-              </div>
-
-              <div className="mt-8 border-t border-border pt-6">
-                <p className="text-xs text-muted-foreground mb-2">Or recover a different session with a code:</p>
-                <div className="flex gap-2 justify-center">
-                  <input
-                    value={recoveryCode}
-                    onChange={e => setRecoveryCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    placeholder="6-digit code"
-                    className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  <button
-                    onClick={() => {
-                      const found = loadSessionByCode(recoveryCode);
-                      if (found) {
-                        setResumedSession(found);
-                        setAnswers(found.answers);
-                        setPhase("filling");
-                        toast.success("Session recovered! Continuing your form.");
-                      } else {
-                        toast.error("No session found with that code.");
-                      }
-                    }}
-                    disabled={recoveryCode.length !== 6}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
-                  >
-                    Recover
-                  </button>
-                </div>
-              </div>
-            </div>
-          </main>
-          <Footer />
-        </div>
-      );
-    }
-    // No saved session — go to vault
-    setPhase("vault");
-    return null;
   }
 
   const handleVaultComplete = (extracted: Record<string, string>, summary: string[]) => {
@@ -159,6 +89,89 @@ const FillForm = () => {
     }
   };
 
+  // ── Resume prompt phase ──
+  if (phase === "resume") {
+    return (
+      <div className="min-h-screen bg-background" dir={dir}>
+        <TopBar />
+        <StickyNav />
+        <main className="mx-auto max-w-lg px-4 py-16">
+          <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+            <span className="text-5xl">👋</span>
+            <h2 className="mt-4 font-serif text-xl font-bold text-foreground">Welcome back!</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              I saved your progress last time — you answered{" "}
+              <span className="font-bold text-foreground">
+                {Object.keys(savedSession?.answers || {}).filter(k => {
+                  const v = savedSession?.answers[k];
+                  return v && v.toLowerCase() !== "none";
+                }).length}
+              </span>{" "}
+              questions. Would you like to continue where you left off?
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Session code: <span className="font-mono font-bold text-foreground">{savedSession?.sessionCode}</span>
+            </p>
+            <div className="mt-6 flex justify-center gap-3">
+              <button
+                onClick={() => {
+                  if (savedSession) {
+                    setResumedSession(savedSession);
+                    setAnswers(savedSession.answers);
+                  }
+                  setPhase("filling");
+                }}
+                className="rounded-xl bg-primary px-6 py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90"
+              >
+                ✅ Yes, continue
+              </button>
+              <button
+                onClick={() => {
+                  clearSession(slug);
+                  setPhase("vault");
+                }}
+                className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-bold text-foreground transition-all hover:bg-muted"
+              >
+                🔄 Start fresh
+              </button>
+            </div>
+
+            <div className="mt-8 border-t border-border pt-6">
+              <p className="text-xs text-muted-foreground mb-2">Or recover a different session with a code:</p>
+              <div className="flex gap-2 justify-center">
+                <input
+                  value={recoveryCode}
+                  onChange={e => setRecoveryCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="6-digit code"
+                  className="w-32 rounded-lg border border-border bg-background px-3 py-2 text-center font-mono text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  onClick={() => {
+                    const found = loadSessionByCode(recoveryCode);
+                    if (found) {
+                      setResumedSession(found);
+                      setAnswers(found.answers);
+                      setPhase("filling");
+                      toast.success("Session recovered! Continuing your form.");
+                    } else {
+                      toast.error("No session found with that code.");
+                    }
+                  }}
+                  disabled={recoveryCode.length !== 6}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                >
+                  Recover
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  // ── Vault (document upload) phase ──
   if (phase === "vault") {
     return (
       <div className="min-h-screen bg-background" dir={dir}>
@@ -177,6 +190,7 @@ const FillForm = () => {
     );
   }
 
+  // ── Filling phase ──
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" dir={dir}>
       <TopBar />

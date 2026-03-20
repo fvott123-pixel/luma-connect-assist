@@ -3,7 +3,11 @@ import { SA466_FIELDS } from "./formMaps/sa466Fields";
 
 export type SA466FormData = Record<string, string>;
 
-const SUPABASE_PDF_URL = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/form-templates/sa466en.pdf`;
+// ── FIX: correct path to the PDF template that actually exists in /public ──
+const PDF_PATHS = [
+  "/forms/DSP/sa466en.pdf",
+  "/forms/CUsersfvottDesktopGovernment Forms/Disability Support Pension/sa466en.pdf",
+];
 
 function parseDateParts(value: string): { dd: string; mm: string; yyyy: string } | null {
   const m = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
@@ -18,20 +22,17 @@ function parseDateParts(value: string): { dd: string; mm: string; yyyy: string }
 }
 
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
-  // Try multiple sources for the PDF template
-  const paths = [
-    SUPABASE_PDF_URL,
-    `/forms/SA466.pdf`,
-  ];
-
   let pdfBytes: ArrayBuffer | null = null;
-  for (const url of paths) {
+
+  for (const url of PDF_PATHS) {
     try {
       const res = await fetch(url);
       if (res.ok) {
         pdfBytes = await res.arrayBuffer();
         console.log("Loaded SA466 PDF from:", url);
         break;
+      } else {
+        console.warn("SA466 fetch failed for", url, "status:", res.status);
       }
     } catch (err) {
       console.warn("SA466 fetch error for", url, err);
@@ -39,7 +40,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   }
 
   if (!pdfBytes) {
-    throw new Error("Could not load SA466 PDF template.");
+    throw new Error("Could not load SA466 PDF template. Check that /forms/DSP/sa466en.pdf exists in the public folder.");
   }
 
   const pdfDoc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true, password: "" });
@@ -78,54 +79,85 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
         page.drawText(parts.dd, { x: boxes.ddX, y: boxes.ddY, size: fontSize, font, color });
         page.drawText(parts.mm, { x: boxes.mmX, y: boxes.mmY, size: fontSize, font, color });
         page.drawText(parts.yyyy, { x: boxes.yyyyX, y: boxes.yyyyY, size: fontSize, font, color });
-        continue;
       }
+      continue;
     }
 
-    // Regular text — coordinates are bottom-left origin (0,0 = bottom-left)
-    page.drawText(value, {
-      x: field.x,
-      y: field.y,
-      size: fontSize,
-      font,
-      color,
-      maxWidth: field.maxWidth,
-    });
+    // Standard text field
+    const displayValue = String(value);
+    const maxWidth = field.maxWidth || 300;
+
+    // Wrap long text
+    if (displayValue.length > 40 && maxWidth > 100) {
+      const words = displayValue.split(" ");
+      const lines: string[] = [];
+      let current = "";
+      const charWidth = fontSize * 0.55;
+      const maxChars = Math.floor(maxWidth / charWidth);
+
+      for (const word of words) {
+        if ((current + " " + word).trim().length <= maxChars) {
+          current = (current + " " + word).trim();
+        } else {
+          if (current) lines.push(current);
+          current = word;
+        }
+      }
+      if (current) lines.push(current);
+
+      const lineHeight = fontSize + 3;
+      lines.forEach((line, i) => {
+        page.drawText(line, {
+          x: field.x,
+          y: field.y - i * lineHeight,
+          size: fontSize,
+          font,
+          color,
+        });
+      });
+    } else {
+      page.drawText(displayValue, {
+        x: field.x,
+        y: field.y,
+        size: fontSize,
+        font,
+        color,
+      });
+    }
   }
 
   // Embed signature if provided
   if (signatureDataUrl) {
     try {
-      const sigResponse = await fetch(signatureDataUrl);
-      const sigBytes = new Uint8Array(await sigResponse.arrayBuffer());
+      const base64 = signatureDataUrl.split(",")[1];
+      const sigBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
       const sigImage = await pdfDoc.embedPng(sigBytes);
-      const declarationPage = pages[21]; // Part I Declaration page
-      if (declarationPage) {
-        const { height: declHeight } = declarationPage.getSize();
-        declarationPage.drawImage(sigImage, {
-          x: 147,
-          y: declHeight - 792, // bottom-left origin
-          width: 200,
+      const sigPage = pages[pages.length - 1];
+      if (sigPage) {
+        const { width: pageWidth, height: pageHeight } = sigPage.getSize();
+        sigPage.drawImage(sigImage, {
+          x: pageWidth - 220,
+          y: 80,
+          width: 160,
           height: 50,
         });
       }
-    } catch (err) {
-      console.warn("Could not embed signature:", err);
+    } catch (e) {
+      console.warn("Could not embed signature:", e);
     }
   }
 
-  const savedBytes = await pdfDoc.save();
-  return savedBytes;
+  return pdfDoc.save();
 }
 
 export function downloadPdf(bytes: Uint8Array, filename: string) {
-  const blob = new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+  const blob = new Blob([bytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
