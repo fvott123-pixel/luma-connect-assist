@@ -303,28 +303,37 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchAddressSuggestions = async (query: string) => {
-    if (query.length < 4) { setAddressSuggestions([]); setShowAddressSuggestions(false); return; }
+    if (query.length < 3) { setAddressSuggestions([]); setShowAddressSuggestions(false); return; }
     try {
-      // Free OpenStreetMap Nominatim API — Australian addresses only
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ", Australia")}&format=json&countrycodes=au&addressdetails=1&limit=6`;
-      const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+      // Primary: Nominatim with AU filter — no API key needed
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=au&addressdetails=1&limit=8&featuretype=house`;
+      const res = await fetch(url, {
+        headers: { "Accept-Language": "en-AU", "User-Agent": "LumaFormAssist/1.0" }
+      });
       if (res.ok) {
         const data = await res.json();
+        const seen = new Set<string>();
         const formatted = data
-          .filter((r: any) => r.display_name)
+          .filter((r: any) => r.address)
           .map((r: any) => {
-            // Format as "123 Street Name, Suburb SA 5000"
-            const a = r.address || {};
-            const parts = [
-              a.house_number ? `${a.house_number} ${a.road || ""}`.trim() : (a.road || ""),
-              a.suburb || a.town || a.city || a.village || "",
-              a.state_code || a.state || "",
-              a.postcode || "",
-            ].filter(Boolean);
+            const a = r.address;
+            // Build Australian-style address: "123 Smith St, Suburb SA 5000"
+            const streetNum = a.house_number || "";
+            const street = a.road || a.pedestrian || a.footway || "";
+            const streetPart = streetNum ? `${streetNum} ${street}`.trim() : street;
+            const suburb = a.suburb || a.town || a.city_district || a.village || a.city || "";
+            const state = a.state_code || (a.state || "").replace("South Australia","SA")
+              .replace("New South Wales","NSW").replace("Victoria","VIC")
+              .replace("Queensland","QLD").replace("Western Australia","WA")
+              .replace("Tasmania","TAS").replace("Northern Territory","NT")
+              .replace("Australian Capital Territory","ACT");
+            const postcode = a.postcode || "";
+            const parts = [streetPart, suburb, state, postcode].filter(Boolean);
             return parts.join(", ");
           })
-          .filter((s: string) => s.length > 5)
-          .slice(0, 5);
+          .filter((s: string) => s.length > 8 && /\d/.test(s))
+          .filter((s: string) => { if (seen.has(s)) return false; seen.add(s); return true; })
+          .slice(0, 6);
         setAddressSuggestions(formatted);
         setShowAddressSuggestions(formatted.length > 0);
       }
@@ -767,16 +776,44 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         <div className="border-t border-border bg-card px-3 py-2.5">
           {/* Address autocomplete suggestions */}
           {isAddressField && showAddressSuggestions && addressSuggestions.length > 0 && (
-            <div className="mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
-              {addressSuggestions.map((addr, i) => (
-                <button
-                  key={i}
-                  onMouseDown={(e) => { e.preventDefault(); setInput(addr); setShowAddressSuggestions(false); }}
-                  className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-primary/10 border-b border-border/50 last:border-0"
-                >
-                  📍 {addr}
-                </button>
-              ))}
+            <div className="mb-2 rounded-xl border border-border bg-white shadow-xl overflow-hidden" style={{ boxShadow: "0 4px 20px rgba(0,0,0,0.12)" }}>
+              <div className="px-3 py-1.5 border-b border-border/30 bg-muted/30 flex items-center gap-1.5">
+                <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-[10px] text-muted-foreground font-medium">Australian address suggestions</span>
+              </div>
+              {addressSuggestions.map((addr, i) => {
+                // Split address into street + suburb/state/postcode for two-line display
+                const parts = addr.split(",");
+                const street = parts[0]?.trim() || addr;
+                const rest = parts.slice(1).join(",").trim();
+                return (
+                  <button
+                    key={i}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setInput(addr);
+                      setShowAddressSuggestions(false);
+                    }}
+                    className="w-full px-3 py-2.5 text-left hover:bg-primary/8 border-b border-border/20 last:border-0 transition-colors group"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 text-primary/60 text-xs">📍</span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                          {street}
+                        </div>
+                        {rest && <div className="text-[10px] text-muted-foreground truncate mt-0.5">{rest}</div>}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+              <div className="px-3 py-1 bg-muted/20 flex items-center justify-end gap-1">
+                <span className="text-[9px] text-muted-foreground">Powered by OpenStreetMap</span>
+              </div>
             </div>
           )}
           <div className="flex gap-2">

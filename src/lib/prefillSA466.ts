@@ -350,6 +350,15 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
 
 
   // ══ Remaining 28 questions ══
+  // Final missing fields
+  if (!isEmpty(data.partnerCurrentVisa||"")) txt(form, "Q75.VisaClass", data.partnerCurrentVisa||"");
+  if (!isEmpty(data.deceasedPartnerName||"")) txt(form, "Q78.FullName", data.deceasedPartnerName||"");
+  if (!isEmpty(data.exPartnerFamilyName||"")) txt(form, "Q79.FamilyName", data.exPartnerFamilyName||"");
+  if (!isEmpty(data.exPartnerAddress||"")) addr(form, "Q80", data.exPartnerAddress||"");
+  if (data.liveWithPrimaryTenant) btn(form, "Q90", data.liveWithPrimaryTenant);
+  if (!isEmpty(data.giftLoanAmount||"")) txt(form, "Q97.Details.Gift", data.giftLoanAmount||"");
+  if (data.entryContributionMoveDate) dmy(form, "Q92.YP", data.entryContributionMoveDate);
+
   if (data.studyHours && data.studyHours !== "none")           txt(form, "20.D.Hours", data.studyHours);
   if (data.chargedWithOffence)    btn(form, "Q22", data.chargedWithOffence);
   if (!isEmpty(data.institutionName||""))  txt(form, "Q23", data.institutionName||"");
@@ -407,6 +416,24 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.employerLastYear||""))    txt(form, "116.Name.0", data.employerLastYear||"");
   if (data.howLongStaying) {
     try { form.getRadioGroup("Q93Y").select("Yes"); } catch {}
+  }
+
+
+  // Previously unwired fields
+  if (!isEmpty(data.taxFileNumber||""))      txt(form, "Q23", data.taxFileNumber||"");
+  if (data.arrivalDate)                      dmy(form, "Q24", data.arrivalDate);
+  if (!isEmpty(data.previousWorkType||""))   txt(form, "Q137.D0.WorkType", data.previousWorkType||"");
+  if (!isEmpty(data.bankBalance||""))        txt(form, "Q106.Assets", data.bankBalance||"");
+  if (!isEmpty(data.rentAmount||""))         txt(form, "Q111.Paid", data.rentAmount||"");
+  if (!isEmpty(data.partnerPaymentType||"")) txt(form, "Q67", data.partnerPaymentType||"");
+  if (data.workCapacity)                     btn(form, "Q30", data.workCapacity === "Yes" ? "Yes" : "No");
+  if (!isEmpty(data.specificCondition||"")) {
+    const scMap: Record<string,string> = {
+      "Eye condition": "a", "Intellectual disability": "b", "HIV/AIDS": "c"
+    };
+    if (scMap[data.specificCondition]) {
+      try { form.getCheckBox(`Q134.${scMap[data.specificCondition]}`).check(); } catch {}
+    }
   }
 
   // ══ Signature ══

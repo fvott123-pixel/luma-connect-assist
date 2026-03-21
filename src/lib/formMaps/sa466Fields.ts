@@ -2183,6 +2183,80 @@ export const SA466_FIELDS: SA466Field[] = [
     required: false, skipText: "none", maxWidth: 250,
   },
 
+
+  // Q74 — Partner visa type (already added above as partnerVisaType Q74)
+  // Q75 — Partner current visa details
+  {
+    id: "partnerCurrentVisa", questionNumber: 75, pageNumber: 14,
+    x: 334, y: 252, fieldType: "text", label: "Partner Current Visa",
+    section: "partner",
+    lumaQuestion: "What is your partner's current visa class or subclass number? (e.g. '309', '820', 'permanent'). Say 'not sure' if unknown.",
+    required: false, skipText: "not sure",
+    skipIf: { field: "partnerAustralianCitizen", equals: "Yes", goTo: 77 },
+  },
+
+  // Q78 — Deceased partner details
+  {
+    id: "deceasedPartnerName", questionNumber: 78, pageNumber: 15,
+    x: 340, y: 439, fieldType: "text", label: "Deceased Partner Name",
+    section: "partner",
+    lumaQuestion: "What was your deceased partner's full name?",
+    required: false, skipText: "none",
+    skipIf: { field: "currentRelationshipStatus", equals: "Separated", goTo: 81 },
+  },
+
+  // Q79 — Ex-partner family name
+  {
+    id: "exPartnerFamilyName", questionNumber: 79, pageNumber: 15,
+    x: 335, y: 333, fieldType: "text", label: "Ex-Partner Family Name",
+    section: "partner",
+    lumaQuestion: "What is your ex-partner's family name?",
+    required: false, skipText: "none",
+    skipIf: { field: "hasPartner", equals: "Yes", goTo: 81 },
+  },
+
+  // Q80 — Ex-partner address
+  {
+    id: "exPartnerAddress", questionNumber: 80, pageNumber: 15,
+    x: 335, y: 208, fieldType: "text", label: "Ex-Partner Address",
+    section: "partner",
+    lumaQuestion: "What is your ex-partner's current address (if known)? Say 'unknown' if you don't know.",
+    required: false, skipText: "unknown",
+    skipIf: { field: "hasPartner", equals: "Yes", goTo: 81 },
+  },
+
+  // Q90 — Live with primary tenant
+  {
+    id: "liveWithPrimaryTenant", questionNumber: 90, pageNumber: 19,
+    x: 67, y: 676, fieldType: "select", label: "Live With Primary Tenant",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Do you live with the primary tenant in their home?",
+    required: false,
+    tickPositions: { "Yes": { x: 67, y: 676 }, "No": { x: 67, y: 692 } },
+    skipIf: { field: "nameOnLease", equals: "Yes", goTo: 91 },
+  },
+
+  // Q97 — Gift/loan amount (aged care)
+  {
+    id: "giftLoanAmount", questionNumber: 97, pageNumber: 19,
+    x: 344, y: 367, fieldType: "text", label: "Gift/Loan Amount",
+    section: "income",
+    lumaQuestion: "What was the additional gift or loan amount? (e.g. '$50,000')",
+    required: false, skipText: "none", maxWidth: 120,
+    skipIf: { field: "giftLoanEntryFee", equals: "No", goTo: 99 },
+  },
+
+  // Q98 — Date moved in (aged care)
+  {
+    id: "entryContributionMoveDate", questionNumber: 98, pageNumber: 19,
+    x: 331, y: 203, fieldType: "date", label: "Entry Contribution Move Date",
+    section: "income",
+    lumaQuestion: "What date did you pay the entry contribution? (DD/MM/YYYY)",
+    required: false,
+    dateBoxes: { ddX: 331, ddY: 203, mmX: 365, mmY: 203, yyyyX: 399, yyyyY: 203 },
+    skipIf: { field: "paidEntryContribution", equals: "No", goTo: 100 },
+  },
+
   {
     id: "declarationDate",
     questionNumber: 70,
