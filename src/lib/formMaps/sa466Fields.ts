@@ -1463,6 +1463,334 @@ export const SA466_FIELDS: SA466Field[] = [
     },
   },
 
+
+  // ════════════════════════════════════════════════
+  // MISSING QUESTIONS — COMPLETE SA466 COVERAGE
+  // Added after deep form audit
+  // ════════════════════════════════════════════════
+
+  // Q81 — Share accommodation
+  {
+    id: "shareAccommodation",
+    questionNumber: 81,
+    pageNumber: 16,
+    x: 67, y: 684,
+    fieldType: "select",
+    label: "Share Accommodation",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you share your home with anyone other than an immediate family member? 🏠",
+    lumaExplanation: "An immediate family member is a spouse, partner, child, or parent. This question is about housemates, boarders, or other people living with you.",
+    required: true,
+    tickPositions: {
+      "Yes": { x: 67, y: 684 },
+      "No":  { x: 67, y: 700 },
+    },
+  },
+
+  // Q83 — Own a home not living in
+  {
+    id: "ownHomeNotLiving",
+    questionNumber: 83,
+    pageNumber: 18,
+    x: 67, y: 750,
+    fieldType: "select",
+    label: "Own Home Not Living In",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you (or your partner) own a home that you are NOT currently living in? 🏡",
+    lumaExplanation: "This includes investment properties or a home you own but rent out.",
+    required: true,
+    tickPositions: {
+      "Yes": { x: 67, y: 750 },
+      "No":  { x: 67, y: 765 },
+    },
+  },
+
+  // Q85 — Sold former home
+  {
+    id: "soldFormerHome",
+    questionNumber: 85,
+    pageNumber: 18,
+    x: 67, y: 469,
+    fieldType: "select",
+    label: "Sold Former Home",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Have you (or your partner) sold your former home within the last 2 years?",
+    required: false,
+    skipIf: { field: "ownHomeNotLiving", equals: "No", goTo: 86 },
+    tickPositions: {
+      "Yes": { x: 67, y: 469 },
+      "No":  { x: 67, y: 453 },
+    },
+  },
+
+  // Q88 — Name on rental contract
+  {
+    id: "nameOnLease",
+    questionNumber: 88,
+    pageNumber: 18,
+    x: 351, y: 190,
+    fieldType: "select",
+    label: "Name on Rental Contract",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Is your name (or your partner's name) on the rental contract or lease? 📄",
+    required: false,
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 89 },
+    tickPositions: {
+      "Yes": { x: 351, y: 190 },
+      "No":  { x: 351, y: 205 },
+    },
+  },
+
+  // Q109 — Pay board/lodgings
+  {
+    id: "payBoardLodgings",
+    questionNumber: 109,
+    pageNumber: 21,
+    x: 350, y: 692,
+    fieldType: "select",
+    label: "Pay Board or Lodgings",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you pay board and/or lodgings where you live?",
+    required: false,
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 113 },
+    tickPositions: {
+      "Yes": { x: 350, y: 692 },
+      "No":  { x: 350, y: 707 },
+    },
+  },
+
+  // Q115 — Formal lease/tenancy
+  {
+    id: "formalLease",
+    questionNumber: 115,
+    pageNumber: 22,
+    x: 70, y: 565,
+    fieldType: "select",
+    label: "Formal Lease or Tenancy",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you have a formal lease or tenancy agreement? 📋",
+    required: false,
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 116 },
+    tickPositions: {
+      "Yes": { x: 70, y: 565 },
+      "No":  { x: 70, y: 581 },
+    },
+  },
+
+  // Q117 — Income in last 12 months
+  {
+    id: "incomeLastYear",
+    questionNumber: 117,
+    pageNumber: 22,
+    x: 339, y: 355,
+    fieldType: "text",
+    label: "Income Last 12 Months",
+    section: "income",
+    lumaQuestion: "What was your total income in the last 12 months? Include wages, Centrelink, super, interest, rent — everything. If none, say 'none'. 💰",
+    required: false,
+    skipText: "none",
+    maxWidth: 250,
+  },
+
+  // Q118 — Redundancy payment
+  {
+    id: "redundancyPayment",
+    questionNumber: 118,
+    pageNumber: 23,
+    x: 70, y: 565,
+    fieldType: "select",
+    label: "Redundancy Payment",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Did you (or your partner) receive a redundancy payment in the last 12 months?",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 70, y: 565 },
+      "No":  { x: 70, y: 581 },
+    },
+  },
+
+  // Q120 — Tax file number
+  {
+    id: "hasTFN",
+    questionNumber: 120,
+    pageNumber: 23,
+    x: 372, y: 619,
+    fieldType: "select",
+    label: "Has Tax File Number",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you have a Tax File Number (TFN)? 🔢",
+    lumaExplanation: "Your TFN is a 9-digit number from the ATO. You can find it on your tax return, payment summary, or myGov.",
+    required: true,
+    tickPositions: {
+      "Yes": { x: 372, y: 619 },
+      "No":  { x: 372, y: 635 },
+    },
+  },
+
+  // Q121 — Younger than 21
+  {
+    id: "youngerThan21",
+    questionNumber: 121,
+    pageNumber: 23,
+    x: 70, y: 432,
+    fieldType: "select",
+    label: "Younger Than 21",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Are you younger than 21 years old?",
+    required: true,
+    tickPositions: {
+      "Yes": { x: 70, y: 432 },
+      "No":  { x: 70, y: 416 },
+    },
+  },
+
+  // Q124 — Live with parents
+  {
+    id: "liveWithParents",
+    questionNumber: 124,
+    pageNumber: 25,
+    x: 70, y: 776,
+    fieldType: "select",
+    label: "Live With Parents",
+    section: "income",
+    options: ["Yes", "No"],
+    lumaQuestion: "Do you currently live with your parent(s)?",
+    required: false,
+    skipIf: { field: "youngerThan21", equals: "No", goTo: 65 },
+    tickPositions: {
+      "Yes": { x: 70, y: 776 },
+      "No":  { x: 70, y: 792 },
+    },
+  },
+
+  // Q134 — Specific condition evidence
+  {
+    id: "specificCondition",
+    questionNumber: 134,
+    pageNumber: 30,
+    x: 557, y: 744,
+    fieldType: "select",
+    label: "Specific Condition Evidence",
+    section: "disability",
+    options: ["Eye condition", "Intellectual disability", "HIV/AIDS", "None"],
+    lumaQuestion: "Does your condition need specialist evidence? A: Eye condition (not blind but affects vision)  B: Intellectual disability  C: Category 4 HIV/AIDS. Say 'none' if none apply.",
+    required: false,
+    skipText: "none",
+    tickPositions: {
+      "Eye condition":       { x: 557, y: 744 },
+      "Intellectual disability": { x: 557, y: 552 },
+      "HIV/AIDS":           { x: 557, y: 414 },
+      "None":               { x: 557, y: 744 },
+    },
+  },
+
+  // Q136 — Special school
+  {
+    id: "attendedSpecialSchool",
+    questionNumber: 136,
+    pageNumber: 32,
+    x: 70, y: 724,
+    fieldType: "select",
+    label: "Attended Special School",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Have you ever attended a special school or Special Education Unit because of your condition? 🏫",
+    lumaExplanation: "Even if this was many years ago, this information helps Centrelink assess your claim.",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 70, y: 724 },
+      "No":  { x: 70, y: 740 },
+    },
+  },
+
+  // Q138 — Extra workplace support
+  {
+    id: "workplaceSupport",
+    questionNumber: 138,
+    pageNumber: 32,
+    x: 557, y: 724,
+    fieldType: "select",
+    label: "Extra Workplace Support",
+    section: "work",
+    options: ["Yes", "No", "None"],
+    lumaQuestion: "Did you (or do you) get any extra support in the workplace because of your condition? For example: reduced hours, alternative duties, modified environment, on-the-job support. Say 'none' if not.",
+    required: false,
+    skipText: "none",
+    tickPositions: {
+      "Yes":  { x: 557, y: 724 },
+      "No":   { x: 557, y: 724 },
+      "None": { x: 557, y: 724 },
+    },
+  },
+
+  // Q142 — Difficulty getting evidence
+  {
+    id: "difficultyEvidence",
+    questionNumber: 142,
+    pageNumber: 34,
+    x: 70, y: 777,
+    fieldType: "select",
+    label: "Difficulty Getting Evidence",
+    section: "disability",
+    options: ["Yes", "No"],
+    lumaQuestion: "Are you having difficulty getting the medical evidence Centrelink needs? 📋",
+    lumaExplanation: "If yes, Centrelink can help you get the right evidence. Say yes if your doctor is unavailable or if getting evidence is a problem.",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 70, y: 777 },
+      "No":  { x: 70, y: 792 },
+    },
+  },
+
+  // Q77 — Current relationship status (when previously had partner)
+  {
+    id: "currentRelationshipStatus",
+    questionNumber: 77,
+    pageNumber: 15,
+    x: 424, y: 703,
+    fieldType: "select",
+    label: "Current Relationship Status",
+    section: "partner",
+    options: ["Separated", "Divorced", "Widowed", "Never had partner"],
+    lumaQuestion: "What is your current relationship status?",
+    required: false,
+    skipIf: { field: "hasPartner", equals: "Yes", goTo: 57 },
+    tickPositions: {
+      "Separated":      { x: 424, y: 703 },
+      "Divorced":       { x: 424, y: 639 },
+      "Widowed":        { x: 424, y: 584 },
+      "Never had partner": { x: 424, y: 520 },
+    },
+  },
+
+  // Partner lived in Australia (Q73)
+  {
+    id: "partnerLivedInAustralia",
+    questionNumber: 73,
+    pageNumber: 14,
+    x: 350, y: 419,
+    fieldType: "select",
+    label: "Partner Lived in Australia",
+    section: "partner",
+    options: ["Yes", "No"],
+    lumaQuestion: "Has your partner ever lived in Australia?",
+    required: false,
+    skipIf: { field: "hasPartner", equals: "No", goTo: 77 },
+    tickPositions: {
+      "Yes": { x: 350, y: 419 },
+      "No":  { x: 350, y: 435 },
+    },
+  },
+
   {
     id: "declarationDate",
     questionNumber: 70,

@@ -283,6 +283,71 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   // ══ Q139 — Program of support ══
   if (data.programOfSupport) btn(form, "Q139", data.programOfSupport);
 
+
+  // ══ Q81 — Share accommodation ══
+  if (data.shareAccommodation) btn(form, "Q81", data.shareAccommodation);
+
+  // ══ Q83 — Own home not living in ══
+  if (data.ownHomeNotLiving) btn(form, "Q83", data.ownHomeNotLiving);
+
+  // ══ Q85 — Sold former home ══
+  if (data.soldFormerHome) btn(form, "Q85", data.soldFormerHome);
+
+  // ══ Q88 — Name on lease ══
+  if (data.nameOnLease) btn(form, "Q88", data.nameOnLease);
+
+  // ══ Q109 — Board/lodgings ══
+  if (data.payBoardLodgings) btn(form, "Q109", data.payBoardLodgings);
+
+  // ══ Q115 — Formal lease ══
+  if (data.formalLease) btn(form, "Q115", data.formalLease);
+
+  // ══ Q117 — Income last year ══
+  if (!isEmpty(data.incomeLastYear || "")) {
+    // Q117 has sub-fields — write as employer name
+    txt(form, "116.Name.0", data.incomeLastYear || "");
+  }
+
+  // ══ Q118 — Redundancy payment ══
+  if (data.redundancyPayment) btn(form, "Q118", data.redundancyPayment);
+
+  // ══ Q120 — Tax file number ══
+  if (data.hasTFN) btn(form, "Q120", data.hasTFN);
+
+  // ══ Q121 — Younger than 21 ══
+  if (data.youngerThan21) btn(form, "Q121", data.youngerThan21);
+
+  // ══ Q124 — Live with parents ══
+  if (data.liveWithParents) btn(form, "Q124", data.liveWithParents);
+
+  // ══ Q136 — Attended special school ══
+  if (data.attendedSpecialSchool) btn(form, "Q136", data.attendedSpecialSchool);
+
+  // ══ Q138 — Workplace support ══
+  if (data.workplaceSupport && data.workplaceSupport !== "None") {
+    // Mark all that apply — simplified to a checkbox
+    btn(form, "Q138", "NoSupport");
+  }
+
+  // ══ Q142 — Difficulty getting evidence ══
+  if (data.difficultyEvidence) btn(form, "Q142", data.difficultyEvidence);
+
+  // ══ Q77 — Current relationship status ══
+  if (data.currentRelationshipStatus) {
+    const rs: Record<string,string> = {
+      "Separated": "Separated", "Divorced": "Divorced",
+      "Widowed": "Widowed", "Never had partner": "NeverPartner"
+    };
+    if (rs[data.currentRelationshipStatus]) btn(form, "Q77", rs[data.currentRelationshipStatus]);
+  }
+
+  // ══ Partner lived in Australia ══
+  if (data.partnerLivedInAustralia) btn(form, "Q73", data.partnerLivedInAustralia);
+
+  // ══ Partner country of citizenship ══
+  if (!isEmpty(data.partnerCountryOfCitizenship || "")) txt(form, "Q72", data.partnerCountryOfCitizenship || "");
+
+
   // ══ Signature ══
   if (signatureDataUrl) {
     try {
