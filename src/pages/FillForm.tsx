@@ -182,7 +182,6 @@ const FillForm = () => {
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden" dir={dir}>
       <TopBar />
-      <StickyNav />
       <main className="flex flex-col flex-1 min-h-0 px-4 py-2 mx-auto w-full max-w-7xl">
         <div className="flex items-center justify-between mb-2">
           <button onClick={() => navigate("/")} className="text-sm font-semibold text-primary hover:underline">
@@ -264,7 +263,6 @@ const FillForm = () => {
           </p>
         </div>
       </main>
-      <Footer />
     </div>
   );
 };
