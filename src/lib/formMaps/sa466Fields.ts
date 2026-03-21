@@ -28,6 +28,7 @@ export interface SA466Field {
   options?: string[];
   required: boolean;
   skipIf?: { field: string; equals: string; goTo: number };
+  skipIfValues?: string[];  // Multiple skip trigger values
   signatureNotice?: string;
   skipText?: string;
   maxWidth?: number;
@@ -546,6 +547,7 @@ export const SA466_FIELDS: SA466Field[] = [
     lumaQuestion: "Do you have a second doctor or specialist who treats your condition? If so, what is their name? Say \"none\" if not.",
     required: false,
     skipText: "none",
+    skipIfValues: ["none", "no", "n/a"],
     maxWidth: 250,
   },
   {
@@ -603,6 +605,7 @@ export const SA466_FIELDS: SA466Field[] = [
     lumaQuestion: "Do you have a third doctor or specialist? If so, what is their name? Say \"none\" if not.",
     required: false,
     skipText: "none",
+    skipIfValues: ["none", "no", "n/a"],
     maxWidth: 250,
     skipIf: { field: "doctor2Name", equals: "none", goTo: 35 },
   },

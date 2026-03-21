@@ -37,7 +37,7 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
     if (!ctx) return;
     const rect = canvas.getBoundingClientRect();
     canvas.width = rect.width * 2;
-    canvas.height = 120 * 2;
+    canvas.height = 60 * 2;
     ctx.scale(2, 2);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -179,7 +179,7 @@ const SignaturePad = ({ onSignatureChange, initialSignature }: SignaturePadProps
           <canvas
             ref={canvasRef}
             className="w-full cursor-crosshair"
-            style={{ height: 120 }}
+            style={{ height: 60 }}
             onMouseDown={startDraw}
             onMouseMove={draw}
             onMouseUp={endDraw}

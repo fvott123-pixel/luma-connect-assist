@@ -152,8 +152,8 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
 
       {/* Signature */}
       {onSignatureChange && (
-        <div className="border-t border-border px-4 py-3 bg-muted/30 shrink-0">
-          <p className="text-[11px] font-bold text-foreground mb-2">✍️ Signature</p>
+        <div className="border-t border-border px-3 py-1.5 bg-muted/30 shrink-0">
+          <p className="text-[10px] font-bold text-foreground mb-1">✍️ Signature</p>
           <SignaturePad onSignatureChange={onSignatureChange} initialSignature={signatureDataUrl} />
         </div>
       )}

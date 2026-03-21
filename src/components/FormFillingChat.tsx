@@ -88,8 +88,16 @@ const LANG_NAMES: Record<string, string> = {
  */
 function shouldSkipField(field: SA466Field, answers: Record<string, string>): boolean {
   if (!field.skipIf) return false;
-  const depValue = answers[field.skipIf.field];
-  return depValue?.toLowerCase() === field.skipIf.equals.toLowerCase();
+  const depValue = answers[field.skipIf.field]?.toLowerCase().trim() || "";
+  // Check the primary skipIf equals value
+  if (depValue === field.skipIf.equals.toLowerCase()) return true;
+  // Check if the dependency field's value is in skipIfValues
+  const depField = field.skipIf.field;
+  const depFieldDef = SA466_FIELDS.find(f => f.id === depField);
+  if (depFieldDef?.skipIfValues) {
+    return depFieldDef.skipIfValues.map(v => v.toLowerCase()).includes(depValue);
+  }
+  return false;
 }
 
 /**
@@ -582,7 +590,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
 
       const langName = LANG_NAMES[lang] || "English";
       const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}. Translate the question and explanation into ${langName}.` : "";
-      const prompt = `${langInstruction} The user answered "${cleanAnswer}" for "${currentField.label}". Acknowledge warmly in ${langName}. ${sectionChange} Then ask: "${nextField.lumaQuestion}" ${nextField.lumaExplanation ? `First explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? 'This field is optional — let them know they can say "none" or skip.' : ""} Keep it to 1-2 short sentences.`;
+      const nextQ = nextField.lumaQuestion || `Please provide: ${nextField.label}`;
+      const prompt = `${langInstruction} You are Luma filling a government form with the user. The user just answered "${cleanAnswer}" for "${currentField.label}". Acknowledge their answer warmly in 1 sentence in ${langName}. ${sectionChange} Then IMMEDIATELY ask this EXACT next question: "${nextQ}" ${nextField.lumaExplanation ? `Briefly explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options are: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? '(Optional — they can say "none" to skip)' : ""} Do NOT ask what comes next — you already know. Keep it to 1-2 sentences total.`;
 
       const buttons = getButtonsForField(nextField);
       let text = "";
