@@ -162,12 +162,21 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.authorisePerson) btn(form, "Q9", data.authorisePerson);
 
   // ══ Q10-Q21 Work history ══
-  if (data.wasEmployee)       btn(form, "Q10", data.wasEmployee);
-  if (data.stillWorking)      btn(form, "Q12", data.stillWorking);
-  if (data.planningLessHours) btn(form, "Q14", data.planningLessHours);
-  if (data.wasSelfEmployed)   btn(form, "Q16", data.wasSelfEmployed);
-  if (data.stillSelfEmployed) btn(form, "Q17", data.stillSelfEmployed);
-  if (!isEmpty(data.activityBeforeClaim||"")) txt(form, "Q21", data.activityBeforeClaim||"");
+  if (data.wasEmployee)              btn(form, "Q10", data.wasEmployee);
+  if (data.stillWorkingForEmployer)  btn(form, "Q12", data.stillWorkingForEmployer);  // FIX: was stillWorking
+  if (data.gradualReturnToWork)      btn(form, "Q13", data.gradualReturnToWork);
+  if (data.planningLessHours)        btn(form, "Q14", data.planningLessHours);
+  if (data.riskLosingJob)            btn(form, "Q15", data.riskLosingJob);
+  if (data.wasSelfEmployed)          btn(form, "Q16", data.wasSelfEmployed);
+  if (data.stillSelfEmployed)        btn(form, "Q17", data.stillSelfEmployed);
+  if (data.wasApprentice)            btn(form, "Q18", data.wasApprentice);
+  if (data.stillAtSchool)            btn(form, "Q19", data.stillAtSchool);
+  if (data.doingStudy)               btn(form, "Q20", data.doingStudy);
+  // Q21 — activityBeforeClaim: checkbox + detail text field
+  if (!isEmpty(data.activityBeforeClaim || "")) {
+    btn(form, "Q21", "Yes");
+    txt(form, "21.D", data.activityBeforeClaim || "");
+  }
   // ══ Q116-Q118 Employment income ══
   if (data.stoppedWorkingLastYear)  btn(form, "Q116", data.stoppedWorkingLastYear);
   if (!isEmpty(data.employerLastYear||"")) txt(form, "116.Name.0", data.employerLastYear||"");
@@ -186,11 +195,13 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.institutionName || "")) txt(form, "Q23", data.institutionName || "");
   if (data.releaseDate) dmy(form, "Q24", data.releaseDate);
 
-  // ══ Q26-29 — Payment questions ══
+  // ══ Q25-32 — Payment questions ══
+  if (data.claimingForBlindness)     btn(form, "Q25", data.claimingForBlindness);
   if (data.claimingRentAssistance)   btn(form, "Q26", data.claimingRentAssistance);
   if (data.gettingNZPayment)         btn(form, "Q27", data.gettingNZPayment);
   if (data.gettingDVAPayment)        btn(form, "Q28", data.gettingDVAPayment);
   if (data.selfEmploymentAssistance) btn(form, "Q29", data.selfEmploymentAssistance);
+  if (data.gettingWorkersComp)       btn(form, "Q30", data.gettingWorkersComp);
 
   // ══ Q31-32 — Income streams ══
   if (data.incomeStreamToldBefore) btn(form, "Q31", data.incomeStreamToldBefore);
@@ -203,11 +214,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   txt(form, "AccNames", data.accountName   || "");
 
   // ══ Q35/36 ══
-  if (data.receivingPayment)    btn(form, "Q35", data.receivingPayment);
-  if (data.changedCircumstances) btn(form, "Q36", data.changedCircumstances);
+  if (data.receivingOtherPayments)  btn(form, "Q35", data.receivingOtherPayments);  // FIX: was receivingPayment
+  if (data.changedCircumstances)    btn(form, "Q36", data.changedCircumstances);
 
   // ══ Q37/38 — Interpreter / under 21 ══
-  if (data.under21ForPayment) btn(form, "Q37", data.under21ForPayment);
+  if (data.youngerThan21ForPayment) btn(form, "Q37", data.youngerThan21ForPayment); // FIX: was under21ForPayment
 
   // ══ Q44-47 — Residence ══
   if (data.travelledOverseas)         btn(form, "Q44", data.travelledOverseas);
@@ -217,6 +228,8 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.australianCitizen)  btn(form, "Q47", data.australianCitizen);
   if (data.permanentResident)  btn(form, "Q48", data.permanentResident);
   if (!isEmpty(data.visaType || "")) txt(form, "Q49.VisaClass", data.visaType || "");
+  if (data.visaChanged)        btn(form, "Q50", data.visaChanged);
+  if (data.livedBefor1965)     btn(form, "Q51", data.livedBefor1965);
   if (data.assuranceOfSupport) btn(form, "Q52", data.assuranceOfSupport);
   if (data.travelledOverseas)  btn(form, "Q53", data.travelledOverseas);
 
@@ -266,11 +279,12 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     if (m[data.reasonNotWithPartner]) btn(form, "Q65", m[data.reasonNotWithPartner]);
   }
 
+  if (data.partnerGettingPayments)   btn(form, "Q67", data.partnerGettingPayments);
+  if (data.partnerTravelledOverseas) btn(form, "Q69", data.partnerTravelledOverseas);
   if (!isEmpty(data.partnerCountryOfBirth || ""))        txt(form, "Q71", data.partnerCountryOfBirth || "");
   if (!isEmpty(data.partnerCountryOfCitizenship || "")) txt(form, "Q72Details.CoC", data.partnerCountryOfCitizenship || "");
   if (data.partnerAustralianCitizen) btn(form, "Q72", data.partnerAustralianCitizen);
   if (data.partnerLivedInAustralia)  btn(form, "Q73", data.partnerLivedInAustralia);
-  if (data.partnerTravelledOverseas) btn(form, "Q69", data.partnerTravelledOverseas);
   if (data.partnerVisaType) {
     const m: Record<string,string> = {
       "Permanent":"Perm","Temporary":"Temp","New Zealand":"NZ","Not sure":"NotSure"
@@ -285,6 +299,7 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     };
     if (m[data.currentRelationshipStatus]) btn(form, "Q77", m[data.currentRelationshipStatus]);
   }
+  if (!isEmpty(data.deceasedPartnerName || "")) txt(form, "Q78.FullName", data.deceasedPartnerName || "");
   if (!isEmpty(data.exPartnerFamilyName || "")) txt(form, "Q79.FamilyName", data.exPartnerFamilyName || "");
   if (!isEmpty(data.exPartnerAddress    || "")) addr(form, "Q80", data.exPartnerAddress || "");
 
@@ -324,18 +339,23 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.totalAmountCharged || "")) txt(form, "Q114.Paid", data.totalAmountCharged || "");
   if (data.formalLease) btn(form, "Q115", data.formalLease);
   if (!isEmpty(data.incomeLastYear || ""))  txt(form, "Q105.Pay", data.incomeLastYear || "");
-  if (data.redundancyPayment) btn(form, "Q118", data.redundancyPayment);
-  if (data.hasTFN)            btn(form, "Q120", data.hasTFN);
-  if (data.youngerThan21)     btn(form, "Q121", data.youngerThan21);
-  if (data.liveWithParents)   btn(form, "Q124", data.liveWithParents);
+  if (data.redundancyPayment)           btn(form, "Q118", data.redundancyPayment);
+  // Q120 TFN — two separate checkbox fields: Q120Y (has TFN) and Q120P (partner TFN)
+  if (data.hasTFN) btn(form, "Q120Y", data.hasTFN);
+  if (!isEmpty(data.tfnNumber || "")) txt(form, "Q120YDetails.0", data.tfnNumber || "");
+  if (data.youngerThan21)               btn(form, "Q121", data.youngerThan21);
+  if (data.liveWithParents)             btn(form, "Q124", data.liveWithParents);
+  if (data.youngerThan18)               btn(form, "Q125", data.youngerThan18);
+  if (data.liveAwayFromParents)         btn(form, "Q126", data.liveAwayFromParents);
+  if (data.unreasonableToLiveAtHome)    btn(form, "Q127", data.unreasonableToLiveAtHome);
 
   // ══ Q117 Income ══
   if (!isEmpty(data.employerLastYear || "")) txt(form, "116.Name.0", data.employerLastYear || "");
 
   // ══ Assets ══
-  if (!isEmpty(data.bankBalance   || "")) txt(form, "Q106.Assets", data.bankBalance   || "");
-  if (!isEmpty(data.sharesValue   || "")) txt(form, "Q97.Details.Gift", data.sharesValue  || "");
-  if (!isEmpty(data.rentAmount    || "")) txt(form, "Q111.Paid", data.rentAmount      || "");
+  if (!isEmpty(data.bankBalance || "")) txt(form, "Q106.Assets", data.bankBalance || "");
+  // NOTE: sharesValue removed — would conflict with giftLoanAmount on Q97.Details.Gift
+  // NOTE: rentAmount removed — same field (Q111.Paid) handled by boardLodgingsAmount above
 
   // ══ Q131-142 — Medical ══
   if (!isEmpty(data.primaryCondition || "")) txt(form, "Q131", data.primaryCondition || "", 9);
@@ -355,16 +375,19 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
     }
   }
 
-  if (data.conditionPermanent) btn(form, "Q133", data.conditionPermanent);
-
-  // Q134 — Specific conditions
-  if (data.specificCondition) {
-    const m: Record<string,string> = {
-      "Eye condition":"a","Intellectual disability":"b","HIV/AIDS":"c"
+  // Q133 — conditionCategory (PDF uses non-standard name encoding A\x85Yes … F\x85Yes)
+  // FIX: was using conditionPermanent (wrong key + wrong export values)
+  if (data.conditionCategory) {
+    const catMap: Record<string, string> = {
+      "Permanently blind":                     "A\x85Yes",
+      "Need nursing home level care":          "B\x85Yes",
+      "Terminal illness (less than 2 years)":  "C\x85Yes",
+      "Intellectual disability (IQ under 70)": "D\x85Yes",
+      "Category 4 HIV/AIDS":                   "E\x85Yes",
+      "None of these":                         "F\x85Yes",
     };
-    if (m[data.specificCondition]) {
-      try { form.getCheckBox(`Q134.${m[data.specificCondition]}`).check(); } catch {}
-    }
+    const exportVal = catMap[data.conditionCategory];
+    if (exportVal) btn(form, "Q133", exportVal);
   }
 
   // Q135 — Treatment
