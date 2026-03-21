@@ -1791,6 +1791,398 @@ export const SA466_FIELDS: SA466Field[] = [
     },
   },
 
+
+  // ════════════════════════════════════════════════
+  // REMAINING 28 QUESTIONS — every SA466 question
+  // now has a field definition so it CAN be filled
+  // ════════════════════════════════════════════════
+
+  // Q11 — Study hours (if studying)
+  {
+    id: "studyHours", questionNumber: 11, pageNumber: 8,
+    x: 52, y: 612, fieldType: "text", label: "Study Hours Per Week",
+    section: "work",
+    lumaQuestion: "How many hours per week are you studying?",
+    required: false, skipText: "none", maxWidth: 80,
+    skipIf: { field: "currentlyWorking", equals: "Yes", goTo: 40 },
+  },
+
+  // Q22 — Charged with offence
+  {
+    id: "chargedWithOffence", questionNumber: 22, pageNumber: 8,
+    x: 67, y: 207, fieldType: "select", label: "Charged With Offence",
+    section: "work", options: ["Yes", "No"],
+    lumaQuestion: "Have you been charged with an offence and are currently in custody or on remand?",
+    required: false,
+    tickPositions: { "Yes": { x: 67, y: 207 }, "No": { x: 67, y: 191 } },
+  },
+
+  // Q23 — Institution name
+  {
+    id: "institutionName", questionNumber: 23, pageNumber: 8,
+    x: 334, y: 151, fieldType: "text", label: "Institution Name",
+    section: "work",
+    lumaQuestion: "What is the name of the institution where you are detained?",
+    required: false, skipText: "none", maxWidth: 250,
+    skipIf: { field: "chargedWithOffence", equals: "No", goTo: 24 },
+  },
+
+  // Q24 — Expected release date
+  {
+    id: "releaseDate", questionNumber: 24, pageNumber: 8,
+    x: 333, y: 301, fieldType: "date", label: "Expected Release Date",
+    section: "work",
+    lumaQuestion: "What is your expected release date? (DD/MM/YYYY, or say 'unknown')",
+    required: false, skipText: "unknown",
+    dateBoxes: { ddX: 333, ddY: 301, mmX: 367, mmY: 302, yyyyX: 401, yyyyY: 301 },
+    skipIf: { field: "chargedWithOffence", equals: "No", goTo: 25 },
+  },
+
+  // Q26 — Claiming Rent Assistance
+  {
+    id: "claimingRentAssistance", questionNumber: 26, pageNumber: 8,
+    x: 350, y: 791, fieldType: "select", label: "Claiming Rent Assistance",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you (or your partner) claiming Rent Assistance with this application?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 791 }, "No": { x: 350, y: 775 } },
+  },
+
+  // Q27 — Getting NZ payment
+  {
+    id: "gettingNZPayment", questionNumber: 27, pageNumber: 8,
+    x: 350, y: 729, fieldType: "select", label: "Getting NZ Payment",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you (or your partner) getting a New Zealand payment?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 729 }, "No": { x: 350, y: 713 } },
+  },
+
+  // Q28 — Getting DVA payment
+  {
+    id: "gettingDVAPayment", questionNumber: 28, pageNumber: 8,
+    x: 350, y: 585, fieldType: "select", label: "Getting DVA Payment",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you (or your partner) getting a payment from the Department of Veterans Affairs (DVA)?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 585 }, "No": { x: 350, y: 569 } },
+  },
+
+  // Q29 — Self-Employment Assistance
+  {
+    id: "selfEmploymentAssistance", questionNumber: 29, pageNumber: 8,
+    x: 350, y: 532, fieldType: "select", label: "Self-Employment Assistance",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you (or your partner) getting Self-Employment Assistance?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 532 }, "No": { x: 350, y: 517 } },
+  },
+
+  // Q31 — Income stream told before
+  {
+    id: "incomeStreamToldBefore", questionNumber: 31, pageNumber: 9,
+    x: 67, y: 548, fieldType: "select", label: "Income Stream Told Before",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Have you (or your partner) told Centrelink about an income stream before?",
+    required: false,
+    tickPositions: { "Yes": { x: 67, y: 548 }, "No": { x: 67, y: 564 } },
+  },
+
+  // Q32 — Getting income stream payments
+  {
+    id: "gettingIncomeStream", questionNumber: 32, pageNumber: 9,
+    x: 67, y: 422, fieldType: "select", label: "Getting Income Stream",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you (or your partner) getting payments from an income stream product (e.g. superannuation pension, annuity)?",
+    required: false,
+    tickPositions: { "Yes": { x: 67, y: 422 }, "No": { x: 67, y: 500 } },
+  },
+
+  // Q36 — Changes to circumstances
+  {
+    id: "changedCircumstances", questionNumber: 36, pageNumber: 10,
+    x: 350, y: 565, fieldType: "select", label: "Changed Circumstances",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are there any changes to your (or your partner's) financial circumstances that you need to tell us about?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 565 }, "No": { x: 350, y: 585 } },
+  },
+
+  // Q37 — Younger than 21
+  {
+    id: "under21ForPayment", questionNumber: 37, pageNumber: 10,
+    x: 350, y: 485, fieldType: "select", label: "Under 21 For Payment",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Are you younger than 21 years old? (This affects your payment rate)",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 485 }, "No": { x: 350, y: 515 } },
+  },
+
+  // Q52 — Assurance of support
+  {
+    id: "assuranceOfSupport", questionNumber: 52, pageNumber: 12,
+    x: 84, y: 270, fieldType: "select", label: "Assurance of Support",
+    section: "residence", options: ["Yes", "No", "Not sure"],
+    lumaQuestion: "Did someone provide you with an assurance of support when you came to Australia?",
+    lumaExplanation: "An assurance of support is a legal commitment by a sponsor to support you financially.",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 84, y: 270 }, "No": { x: 84, y: 301 }, "Not sure": { x: 84, y: 286 }
+    },
+    skipIf: { field: "australianCitizen", equals: "Yes", goTo: 54 },
+  },
+
+  // Q59 — Partner authorisation
+  {
+    id: "partnerAuthorisation", questionNumber: 59, pageNumber: 13,
+    x: 350, y: 749, fieldType: "select", label: "Partner Authorisation",
+    section: "partner", options: ["Yes", "No"],
+    lumaQuestion: "Do you give permission for your partner to speak to Centrelink on your behalf?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 749 }, "No": { x: 350, y: 765 } },
+    skipIf: { field: "hasPartner", equals: "No", goTo: 65 },
+  },
+
+  // Q62 — Live with partner
+  {
+    id: "liveWithPartner", questionNumber: 62, pageNumber: 13,
+    x: 350, y: 609, fieldType: "select", label: "Live With Partner",
+    section: "partner", options: ["Yes", "No"],
+    lumaQuestion: "Do you currently live in the same home as your partner?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 609 }, "No": { x: 351, y: 624 } },
+    skipIf: { field: "hasPartner", equals: "No", goTo: 65 },
+  },
+
+  // Q64 — Partner postal address
+  {
+    id: "partnerPostalAddress", questionNumber: 64, pageNumber: 13,
+    x: 335, y: 104, fieldType: "text", label: "Partner Postal Address",
+    section: "partner",
+    lumaQuestion: "What is your partner's postal address (if different to their permanent address)?",
+    required: false, skipText: "same", maxWidth: 350,
+    skipIf: { field: "hasPartner", equals: "No", goTo: 65 },
+  },
+
+  // Q65 — Why not living with partner
+  {
+    id: "reasonNotWithPartner", questionNumber: 65, pageNumber: 14,
+    x: 135, y: 728, fieldType: "select", label: "Reason Not With Partner",
+    section: "partner",
+    options: ["Partner illness", "Your illness", "Partner in prison", "Partner employment", "Other"],
+    lumaQuestion: "Why are you not living with your partner?",
+    required: false,
+    tickPositions: {
+      "Partner illness":    { x: 135, y: 791 },
+      "Your illness":       { x: 135, y: 775 },
+      "Partner in prison":  { x: 135, y: 760 },
+      "Partner employment": { x: 135, y: 744 },
+      "Other":              { x: 135, y: 728 },
+    },
+    skipIf: { field: "liveWithPartner", equals: "Yes", goTo: 69 },
+  },
+
+  // Q68 — Partner's current country
+  {
+    id: "partnerCurrentCountry", questionNumber: 68, pageNumber: 14,
+    x: 350, y: 712, fieldType: "select", label: "Partner Current Country",
+    section: "partner", options: ["Australia", "Other"],
+    lumaQuestion: "Is your partner currently living in Australia?",
+    required: false,
+    tickPositions: { "Australia": { x: 371, y: 612 }, "Other": { x: 371, y: 554 } },
+    skipIf: { field: "liveWithPartner", equals: "Yes", goTo: 69 },
+  },
+
+  // Q69 — Partner travelled overseas
+  {
+    id: "partnerTravelledOverseas", questionNumber: 69, pageNumber: 14,
+    x: 350, y: 419, fieldType: "select", label: "Partner Travelled Overseas",
+    section: "partner", options: ["Yes", "No"],
+    lumaQuestion: "Has your partner ever travelled outside Australia, including short trips?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 419 }, "No": { x: 350, y: 435 } },
+    skipIf: { field: "hasPartner", equals: "No", goTo: 77 },
+  },
+
+  // Q72 — Partner Australian citizen
+  {
+    id: "partnerAustralianCitizen", questionNumber: 72, pageNumber: 14,
+    x: 371, y: 612, fieldType: "select", label: "Partner Australian Citizen",
+    section: "partner", options: ["Yes", "No"],
+    lumaQuestion: "Is your partner an Australian citizen?",
+    required: false,
+    tickPositions: { "Yes": { x: 371, y: 612 }, "No": { x: 371, y: 554 } },
+    skipIf: { field: "hasPartner", equals: "No", goTo: 77 },
+  },
+
+  // Q74 — Partner visa type
+  {
+    id: "partnerVisaType", questionNumber: 74, pageNumber: 14,
+    x: 422, y: 358, fieldType: "select", label: "Partner Visa Type",
+    section: "partner", options: ["Permanent", "Temporary", "New Zealand", "Not sure"],
+    lumaQuestion: "What type of visa does your partner have?",
+    required: false,
+    tickPositions: {
+      "Permanent": { x: 422, y: 374 }, "Temporary": { x: 422, y: 358 },
+      "New Zealand": { x: 421, y: 342 }, "Not sure": { x: 421, y: 315 },
+    },
+    skipIf: { field: "partnerAustralianCitizen", equals: "Yes", goTo: 77 },
+  },
+
+  // Q84 — Why not in own home
+  {
+    id: "whyNotInOwnHome", questionNumber: 84, pageNumber: 18,
+    x: 180, y: 693, fieldType: "select", label: "Why Not In Own Home",
+    section: "income",
+    options: ["Study", "Medical treatment", "Receiving care", "Providing care", "Overseas", "Other"],
+    lumaQuestion: "Why are you not living in your own home?",
+    required: false,
+    skipIf: { field: "ownHomeNotLiving", equals: "No", goTo: 85 },
+    tickPositions: {
+      "Study":            { x: 180, y: 693 },
+      "Medical treatment":{ x: 180, y: 678 },
+      "Receiving care":   { x: 180, y: 662 },
+      "Providing care":   { x: 180, y: 618 },
+      "Overseas":         { x: 180, y: 599 },
+      "Other":            { x: 180, y: 583 },
+    },
+  },
+
+  // Q87 — Site or mooring fees
+  {
+    id: "siteMooringFees", questionNumber: 87, pageNumber: 18,
+    x: 351, y: 114, fieldType: "select", label: "Site or Mooring Fees",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Do you pay site or mooring fees (e.g. for a caravan or boat)?",
+    required: false,
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 88 },
+    tickPositions: { "Yes": { x: 351, y: 114 }, "No": { x: 351, y: 130 } },
+  },
+
+  // Q89 — Primary tenant market rate
+  {
+    id: "primaryTenantMarketRate", questionNumber: 89, pageNumber: 19,
+    x: 84, y: 763, fieldType: "select", label: "Primary Tenant Market Rate",
+    section: "income", options: ["Yes", "No", "Not sure"],
+    lumaQuestion: "Is the primary tenant paying the market rate of rent?",
+    required: false,
+    skipIf: { field: "nameOnLease", equals: "Yes", goTo: 90 },
+    tickPositions: {
+      "Yes": { x: 84, y: 763 }, "No": { x: 84, y: 794 }, "Not sure": { x: 84, y: 778 }
+    },
+  },
+
+  // Q91 — Name of aged care home
+  {
+    id: "agedCareHomeName", questionNumber: 91, pageNumber: 19,
+    x: 51, y: 577, fieldType: "text", label: "Aged Care Home Name",
+    section: "income",
+    lumaQuestion: "What is the name of the aged care home or nursing home you live in?",
+    required: false, skipText: "none", maxWidth: 250,
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 92 },
+  },
+
+  // Q92 — Date moved in (aged care)
+  {
+    id: "agedCareMoveInDate", questionNumber: 92, pageNumber: 19,
+    x: 49, y: 508, fieldType: "date", label: "Aged Care Move-in Date",
+    section: "income",
+    lumaQuestion: "What date did you move into the aged care home? (DD/MM/YYYY)",
+    required: false,
+    dateBoxes: { ddX: 49, ddY: 508, mmX: 84, mmY: 508, yyyyX: 118, yyyyY: 508 },
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 93 },
+  },
+
+  // Q93 — How long staying
+  {
+    id: "howLongStaying", questionNumber: 93, pageNumber: 19,
+    x: 70, y: 408, fieldType: "select", label: "How Long Staying",
+    section: "income", options: ["Long term", "Short term"],
+    lumaQuestion: "How long will you be staying in the aged care home? Long term (permanent) or short term (respite/temporary)?",
+    required: false,
+    tickPositions: { "Long term": { x: 70, y: 408 }, "Short term": { x: 70, y: 371 } },
+    skipIf: { field: "agedCareHomeName", equals: "none", goTo: 94 },
+  },
+
+  // Q96 — Gift/loan in addition to entry fee
+  {
+    id: "giftLoanEntryFee", questionNumber: 96, pageNumber: 19,
+    x: 350, y: 564, fieldType: "select", label: "Gift/Loan Entry Fee",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Did you (or your partner) make a gift or loan in addition to the entry contribution for your accommodation?",
+    required: false,
+    tickPositions: { "Yes": { x: 350, y: 564 }, "No": { x: 350, y: 580 } },
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 97 },
+  },
+
+  // Q99 — Paid entry contribution
+  {
+    id: "paidEntryContribution", questionNumber: 99, pageNumber: 20,
+    x: 70, y: 707, fieldType: "select", label: "Paid Entry Contribution",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Did you (or your partner) pay an entry contribution for your accommodation (e.g. for an aged care home)?",
+    required: false,
+    tickPositions: { "Yes": { x: 70, y: 707 }, "No": { x: 70, y: 723 } },
+    skipIf: { field: "accommodationType", equals: "Own home", goTo: 100 },
+  },
+
+  // Q102 — Sold / transferred assets
+  {
+    id: "soldOrTransferredAssets", questionNumber: 102, pageNumber: 20,
+    x: 70, y: 348, fieldType: "select", label: "Sold or Transferred Assets",
+    section: "income", options: ["Yes", "No"],
+    lumaQuestion: "Have you (or your partner) sold, gifted, or transferred any assets (money, property, shares) in the last 5 years for less than their value?",
+    lumaExplanation: "This is called 'deprivation of assets'. Centrelink may still count these assets in your means test.",
+    required: false,
+    tickPositions: { "Yes": { x: 70, y: 348 }, "No": { x: 70, y: 364 } },
+  },
+
+  // Q111 — Board/lodgings amount
+  {
+    id: "boardLodgingsAmount", questionNumber: 111, pageNumber: 21,
+    x: 381, y: 602, fieldType: "text", label: "Board/Lodgings Amount",
+    section: "income",
+    lumaQuestion: "How much do you pay per week for board and/or lodgings? (e.g. '250' for $250 per week)",
+    required: false, skipText: "none", maxWidth: 120,
+    skipIf: { field: "payBoardLodgings", equals: "No", goTo: 113 },
+  },
+
+  // Q113 — Accommodation type (boarding subtype)
+  {
+    id: "boardingSubtype", questionNumber: 113, pageNumber: 21,
+    x: 472, y: 165, fieldType: "select", label: "Boarding Subtype",
+    section: "income",
+    options: ["Boarding house", "Private", "Community", "Defence", "Caravan", "Boat", "Other"],
+    lumaQuestion: "What type of accommodation do you live in?",
+    required: false,
+    tickPositions: {
+      "Boarding house": { x: 472, y: 205 }, "Private":    { x: 472, y: 180 },
+      "Community":      { x: 472, y: 165 }, "Defence":    { x: 472, y: 149 },
+      "Caravan":        { x: 472, y: 134 }, "Boat":       { x: 472, y: 118 },
+      "Other":          { x: 472, y: 102 },
+    },
+    skipIf: { field: "payBoardLodgings", equals: "No", goTo: 114 },
+  },
+
+  // Q114 — Total amount charged
+  {
+    id: "totalAmountCharged", questionNumber: 114, pageNumber: 22,
+    x: 348, y: 480, fieldType: "text", label: "Total Amount Charged",
+    section: "income",
+    lumaQuestion: "What is the total amount you are charged per week for your accommodation (board, lodging, and any meals)?",
+    required: false, skipText: "none", maxWidth: 120,
+    skipIf: { field: "payBoardLodgings", equals: "No", goTo: 115 },
+  },
+
+  // Q116 — Income in last 12 months (employment)
+  {
+    id: "employerLastYear", questionNumber: 116, pageNumber: 22,
+    x: 339, y: 355, fieldType: "text", label: "Employer Last Year",
+    section: "work",
+    lumaQuestion: "What was the name of your employer in the last 12 months? If you didn't work, say 'none'.",
+    required: false, skipText: "none", maxWidth: 250,
+  },
+
   {
     id: "declarationDate",
     questionNumber: 70,

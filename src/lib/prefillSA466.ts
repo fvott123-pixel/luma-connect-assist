@@ -348,6 +348,67 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.partnerCountryOfCitizenship || "")) txt(form, "Q72", data.partnerCountryOfCitizenship || "");
 
 
+
+  // ══ Remaining 28 questions ══
+  if (data.studyHours && data.studyHours !== "none")           txt(form, "20.D.Hours", data.studyHours);
+  if (data.chargedWithOffence)    btn(form, "Q22", data.chargedWithOffence);
+  if (!isEmpty(data.institutionName||""))  txt(form, "Q23", data.institutionName||"");
+  if (data.releaseDate)           dmy(form, "Q24", data.releaseDate);
+  if (data.claimingRentAssistance) btn(form, "Q26", data.claimingRentAssistance);
+  if (data.gettingNZPayment)      btn(form, "Q27", data.gettingNZPayment);
+  if (data.gettingDVAPayment)     btn(form, "Q28", data.gettingDVAPayment);
+  if (data.selfEmploymentAssistance) btn(form, "Q29", data.selfEmploymentAssistance);
+  if (data.incomeStreamToldBefore) btn(form, "Q31", data.incomeStreamToldBefore);
+  if (data.gettingIncomeStream)   btn(form, "Q32", data.gettingIncomeStream);
+  if (data.changedCircumstances)  btn(form, "Q36", data.changedCircumstances);
+  if (data.under21ForPayment)     btn(form, "Q37", data.under21ForPayment);
+  if (data.assuranceOfSupport)    btn(form, "Q52", data.assuranceOfSupport);
+  if (data.partnerAuthorisation)  btn(form, "Q59", data.partnerAuthorisation);
+  if (data.liveWithPartner)       btn(form, "Q62", data.liveWithPartner);
+  if (!isEmpty(data.partnerPostalAddress||"")) addr(form, "Q64", data.partnerPostalAddress||"");
+  if (data.reasonNotWithPartner) {
+    const map: Record<string,string> = {
+      "Partner illness":"PartnerIllness","Your illness":"YourIllness",
+      "Partner in prison":"PartnerPrison","Partner employment":"PartnerEmployment","Other":"Other"
+    };
+    if (map[data.reasonNotWithPartner]) btn(form, "Q65", map[data.reasonNotWithPartner]);
+  }
+  if (data.partnerAustralianCitizen) btn(form, "Q72", data.partnerAustralianCitizen);
+  if (data.partnerTravelledOverseas) btn(form, "Q69", data.partnerTravelledOverseas);
+  if (data.partnerVisaType) {
+    const vm: Record<string,string> = {
+      "Permanent":"Perm","Temporary":"Temp","New Zealand":"NZ","Not sure":"NotSure"
+    };
+    if (vm[data.partnerVisaType]) btn(form, "Q74", vm[data.partnerVisaType]);
+  }
+  if (data.whyNotInOwnHome) {
+    const wm: Record<string,string> = {
+      "Study":"Study","Medical treatment":"MedTreatment","Receiving care":"ReceiveCarePH",
+      "Providing care":"ProvideCarePH","Overseas":"Overseas","Other":"Other"
+    };
+    if (wm[data.whyNotInOwnHome]) btn(form, "Q84.Reason", wm[data.whyNotInOwnHome]);
+  }
+  if (data.siteMooringFees)          btn(form, "Q87", data.siteMooringFees);
+  if (data.primaryTenantMarketRate)  btn(form, "Q89", data.primaryTenantMarketRate);
+  if (!isEmpty(data.agedCareHomeName||""))  txt(form, "Q91", data.agedCareHomeName||"");
+  if (data.agedCareMoveInDate)       dmy(form, "Q92.Y", data.agedCareMoveInDate);
+  if (data.giftLoanEntryFee)         btn(form, "Q96", data.giftLoanEntryFee);
+  if (data.paidEntryContribution)    btn(form, "Q99", data.paidEntryContribution);
+  if (data.soldOrTransferredAssets)  btn(form, "Q102", data.soldOrTransferredAssets);
+  if (!isEmpty(data.boardLodgingsAmount||"")) txt(form, "Q111.Paid", data.boardLodgingsAmount||"");
+  if (data.boardingSubtype) {
+    const bm: Record<string,string> = {
+      "Boarding house":"Boarding","Private":"Private","Community":"Community",
+      "Defence":"Defence","Caravan":"Caravan","Boat":"Boat","Other":"Other"
+    };
+    if (bm[data.boardingSubtype]) btn(form, "Q113", bm[data.boardingSubtype]);
+  }
+  if (!isEmpty(data.totalAmountCharged||""))  txt(form, "Q114.Paid", data.totalAmountCharged||"");
+  if (!isEmpty(data.employerLastYear||""))    txt(form, "116.Name.0", data.employerLastYear||"");
+  if (data.howLongStaying) {
+    try { form.getRadioGroup("Q93Y").select("Yes"); } catch {}
+  }
+
   // ══ Signature ══
   if (signatureDataUrl) {
     try {
