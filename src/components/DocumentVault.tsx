@@ -85,6 +85,46 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     documentType: "leaseAgreement",
     accept: "image/*,.pdf",
   },
+  {
+    id: "doctorLetter",
+    label: "Doctor or Specialist Letter",
+    description: "Fills doctor name, address, phone, profession, and condition details",
+    icon: "👨‍⚕️",
+    documentType: "doctorLetter",
+    accept: "image/*,.pdf",
+  },
+  {
+    id: "partnerLicence",
+    label: "Partner's Driver's Licence",
+    description: "Auto-fills your partner's name, DOB, address, and gender",
+    icon: "👫",
+    documentType: "partnerLicence",
+    accept: "image/*",
+  },
+  {
+    id: "partnerPassport",
+    label: "Partner's Passport",
+    description: "Auto-fills your partner's name, DOB, country of birth",
+    icon: "🛂",
+    documentType: "partnerPassport",
+    accept: "image/*",
+  },
+  {
+    id: "separationCertificate",
+    label: "Employment Separation Certificate",
+    description: "Employer name, separation date, last pay details (SU001 form)",
+    icon: "📋",
+    documentType: "separationCertificate",
+    accept: "image/*,.pdf",
+  },
+  {
+    id: "taxLetter",
+    label: "ATO Tax Letter or myGov Letter",
+    description: "Extracts your Tax File Number (TFN)",
+    icon: "🔢",
+    documentType: "taxLetter",
+    accept: "image/*,.pdf",
+  },
 ];
 
 type SlotStatus = "idle" | "uploading" | "done" | "skipped" | "error";
@@ -201,6 +241,52 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.rentAmount) mapped.rentAmount = data.rentAmount;
       break;
     }
+    case "doctorLetter": {
+      if (data.treatingDoctor) mapped.treatingDoctor = data.treatingDoctor;
+      if (data.doctorProfession) mapped.doctorProfession = data.doctorProfession;
+      if (data.doctorAddress) mapped.doctorAddress = data.doctorAddress;
+      if (data.doctorPhone) mapped.doctorPhone = data.doctorPhone;
+      if (data.primaryCondition) mapped.primaryCondition = data.primaryCondition;
+      if (data.currentTreatment) mapped.currentTreatment = data.currentTreatment;
+      break;
+    }
+    case "partnerLicence": {
+      if (data.partnerFirstName) mapped.partnerFirstName = data.partnerFirstName;
+      if (data.partnerFamilyName) mapped.partnerFamilyName = data.partnerFamilyName;
+      if (data.partnerDob) {
+        if (data.partnerDob.includes("-")) {
+          const [y, m, d] = data.partnerDob.split("-");
+          if (d && m && y) mapped.partnerDob = `${d}/${m}/${y}`;
+        } else { mapped.partnerDob = data.partnerDob; }
+      }
+      if (data.partnerAddress) mapped.partnerAddress = data.partnerAddress;
+      if (data.partnerGender) mapped.partnerGender = data.partnerGender;
+      break;
+    }
+    case "partnerPassport": {
+      if (data.partnerFirstName) mapped.partnerFirstName = data.partnerFirstName;
+      if (data.partnerFamilyName) mapped.partnerFamilyName = data.partnerFamilyName;
+      if (data.partnerDob) {
+        if (data.partnerDob.includes("-")) {
+          const [y, m, d] = data.partnerDob.split("-");
+          if (d && m && y) mapped.partnerDob = `${d}/${m}/${y}`;
+        } else { mapped.partnerDob = data.partnerDob; }
+      }
+      if (data.partnerGender) mapped.partnerGender = data.partnerGender;
+      if (data.partnerCountryOfBirth) mapped.partnerCountryOfBirth = data.partnerCountryOfBirth;
+      break;
+    }
+    case "separationCertificate": {
+      if (data.employerName) mapped.employerLastYear = data.employerName;
+      if (data.separationDate) mapped.separationDate = data.separationDate;
+      break;
+    }
+    case "taxLetter": {
+      if (data.taxFileNumber) mapped.tfnNumber = data.taxFileNumber;
+      if (data.crn) mapped.crn = data.crn;
+      if (data.address) mapped.permanentAddress = data.address;
+      break;
+    }
   }
 
   return Object.fromEntries(Object.entries(mapped).filter(([, v]) => v && v.trim() !== ""));
@@ -233,8 +319,13 @@ function summarizeExtraction(documentType: string, data: Record<string, string>)
     centrelinkCard: "your Centrelink card",
     bankStatement: "your bank statement",
     taxReturn: "your tax/Centrelink letter",
+    taxLetter: "your ATO/myGov letter",
     medicalReport: "your medical report",
     leaseAgreement: "your lease agreement",
+    doctorLetter: "your doctor letter",
+    partnerLicence: "your partner's licence",
+    partnerPassport: "your partner's passport",
+    separationCertificate: "your separation certificate",
   };
 
   const found = fields.map(([k]) => labels[k] || k).join(", ");
@@ -305,13 +396,21 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
 
       if (error) throw error;
 
-      if (data?.extracted) {
+      if (data?.error === "wrong_document_type") {
+        // Wrong document detected — show clear error
+        setStatuses(prev => ({ ...prev, [slot.id]: "error" }));
+        const actual = data.actual || "a different document";
+        toast.error(
+          `Wrong document! ${slot.label} expects ${slot.description.toLowerCase()}. You uploaded: ${actual}. Please upload the correct document.`,
+          { duration: 7000 }
+        );
+      } else if (data?.extracted) {
         const mapped = mapToFormFields(slot.documentType, data.extracted);
+        const fieldsCount = Object.keys(mapped).length;
         const summary = summarizeExtraction(slot.documentType, mapped);
 
         setAllExtracted(prev => {
           const updated = { ...prev, ...mapped };
-          // Cross-check after passport or licence upload
           if (slot.documentType === "passport" || slot.documentType === "licenceFront") {
             const checks = crossCheckIdDocuments(updated);
             setDiscrepancies(checks);
@@ -321,14 +420,14 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
         if (summary) setSummaries(prev => [...prev, summary]);
 
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
-        toast.success(`${slot.label} scanned successfully! ✨`);
+        toast.success(`${slot.label} scanned! ✅ ${fieldsCount} field${fieldsCount !== 1 ? "s" : ""} pre-filled.`);
       } else {
         throw new Error("No data extracted");
       }
     } catch (err: any) {
       console.error(`Document extraction error (${slot.id}):`, err);
       setStatuses(prev => ({ ...prev, [slot.id]: "error" }));
-      toast.error(`Could not read ${slot.label}. You can skip this one.`);
+      toast.error(`Could not read ${slot.label}. Please try a clearer photo or skip.`);
     }
   };
 
