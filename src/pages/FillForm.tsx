@@ -169,7 +169,7 @@ const FillForm = () => {
           </button>
           <div className="rounded-2xl border border-border bg-card shadow-sm">
             <ErrorBoundary label="Document Vault">
-              <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} />
+              <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} formSlug={slug || "disability-support-pension"} />
             </ErrorBoundary>
           </div>
         </main>

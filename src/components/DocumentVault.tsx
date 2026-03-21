@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { getFormDocuments, PRIORITY_LABELS, type DocSlot } from "@/lib/formDocuments";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -132,6 +133,7 @@ type SlotStatus = "idle" | "uploading" | "done" | "skipped" | "error";
 interface DocumentVaultProps {
   onComplete: (extracted: Record<string, string>, summary: string[]) => void;
   onSkipAll: () => void;
+  formSlug?: string;
 }
 
 /**
@@ -287,6 +289,86 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.address) mapped.permanentAddress = data.address;
       break;
     }
+    case "superStatement": {
+      if (data.superFundName) mapped.superFundName = data.superFundName;
+      if (data.superBalance) mapped.superBalance = data.superBalance;
+      break;
+    }
+    case "visaGrantLetter": {
+      if (data.visaClass) mapped.visaType = data.visaClass;
+      if (data.visaGrantDate) mapped.visaGrantDate = data.visaGrantDate;
+      if (data.visaExpiryDate) mapped.visaExpiryDate = data.visaExpiryDate;
+      break;
+    }
+    case "birthCertificate": {
+      if (data.firstName) mapped.firstName = data.firstName;
+      if (data.surname) mapped.familyName = data.surname;
+      if (data.dateOfBirth) mapped.dob = data.dateOfBirth;
+      if (data.countryOfBirth) mapped.countryOfBirth = data.countryOfBirth;
+      if (data.placeOfBirth) mapped.placeOfBirth = data.placeOfBirth;
+      break;
+    }
+    case "marriageCertificate": {
+      if (data.marriageDate) mapped.relationshipDate = data.marriageDate;
+      if (data.relationshipType) mapped.relationshipStatus = data.relationshipType.includes("de facto") ? "De facto" : "Married";
+      break;
+    }
+    case "hospitalDischarge": {
+      if (data.primaryCondition) mapped.primaryCondition = data.primaryCondition;
+      if (data.diagnoses) mapped.otherConditions = data.diagnoses;
+      if (data.treatingDoctor) mapped.treatingDoctor = data.treatingDoctor;
+      if (data.hospital) mapped.hospitalDetails = data.hospital;
+      if (data.currentTreatment) mapped.currentTreatment = data.currentTreatment;
+      break;
+    }
+    case "medicationList": {
+      if (data.medications) mapped.currentTreatment = data.medications;
+      if (data.prescribingDoctor) mapped.treatingDoctor = data.prescribingDoctor;
+      if (data.doctorPhone) mapped.doctorPhone = data.doctorPhone;
+      if (data.practiceAddress) mapped.doctorAddress = data.practiceAddress;
+      break;
+    }
+    case "programOfSupportCert": {
+      if (data.providerName) mapped.programProvider = data.providerName;
+      if (data.endDate) mapped.programEndDate = data.endDate;
+      // Mark Q139 as Yes automatically
+      mapped.programOfSupport = "Yes";
+      break;
+    }
+    case "workersCompLetter": {
+      if (data.weeklyAmount) mapped.compensationAmount = data.weeklyAmount;
+      if (data.condition) mapped.primaryCondition = mapped.primaryCondition || data.condition;
+      mapped.gettingWorkersComp = "Yes";
+      break;
+    }
+    case "careRecipientId": {
+      if (data.careRecipientFirstName) mapped.careRecipientFirstName = data.careRecipientFirstName;
+      if (data.careRecipientFamilyName) mapped.careRecipientFamilyName = data.careRecipientFamilyName;
+      if (data.careRecipientDob) mapped.careRecipientDob = data.careRecipientDob;
+      break;
+    }
+    case "careRecipientMedical": {
+      if (data.careRecipientCondition) mapped.careRecipientCondition = data.careRecipientCondition;
+      if (data.careRecipientDoctor) mapped.careRecipientDoctor = data.careRecipientDoctor;
+      break;
+    }
+    case "ndisLetter": {
+      if (data.ndisNumber) mapped.ndisNumber = data.ndisNumber;
+      if (data.disabilityType) mapped.primaryCondition = mapped.primaryCondition || data.disabilityType;
+      break;
+    }
+    case "investmentStatement": {
+      if (data.totalValue) mapped.sharesValue = data.totalValue;
+      if (data.fundName) mapped.investmentFundName = data.fundName;
+      if (data.totalValue) mapped.hasShares = "Yes";
+      break;
+    }
+    case "ratesNotice": {
+      if (data.propertyAddress) mapped.propertyAddress = data.propertyAddress;
+      if (data.ownerName) mapped.propertyOwnerName = data.ownerName;
+      mapped.ownHomeNotLiving = "Yes";
+      break;
+    }
   }
 
   return Object.fromEntries(Object.entries(mapped).filter(([, v]) => v && v.trim() !== ""));
@@ -362,9 +444,11 @@ function crossCheckIdDocuments(allExtracted: Record<string, string>): string[] {
   return discrepancies;
 }
 
-const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
+const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-pension" }: DocumentVaultProps) => {
+  const formConfig = getFormDocuments(formSlug);
+  const DOCUMENT_SLOTS_FOR_FORM: DocSlot[] = formConfig.slots;
   const [statuses, setStatuses] = useState<Record<string, SlotStatus>>(
-    Object.fromEntries(DOCUMENT_SLOTS.map(s => [s.id, "idle" as SlotStatus]))
+    Object.fromEntries(DOCUMENT_SLOTS_FOR_FORM.map(s => [s.id, "idle" as SlotStatus]))
   );
   const [allExtracted, setAllExtracted] = useState<Record<string, string>>({});
   const [summaries, setSummaries] = useState<string[]>([]);
@@ -445,12 +529,22 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
       <h2 className="mt-5 font-serif text-xl font-extrabold text-foreground text-center">
         📁 Document Vault
       </h2>
+      <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
+        <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
+        <span className="text-[11px] text-muted-foreground">—</span>
+        <span className="text-[11px] text-muted-foreground">{formConfig.formName}</span>
+      </div>
       <p className="mt-2 text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-        Before we start, upload any documents you have. I'll read them and fill in as much of the form as possible automatically — saving you time! ✨
+        {formConfig.intro}
       </p>
+      <div className="mt-3 flex gap-3 text-[10px]">
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Required</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Recommended</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block"/>Optional</span>
+      </div>
 
       <div className="mt-6 w-full space-y-3">
-        {DOCUMENT_SLOTS.map(slot => {
+        {DOCUMENT_SLOTS_FOR_FORM.map(slot => {
           const status = statuses[slot.id];
           return (
             <div
@@ -469,6 +563,15 @@ const DocumentVault = ({ onComplete, onSkipAll }: DocumentVaultProps) => {
             >
               <span className="text-2xl shrink-0">{status === "done" ? "✅" : slot.icon}</span>
               <div className="flex-1 min-w-0">
+                {slot.priority && (
+                  <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full border mb-0.5 ${
+                    slot.priority === "required" ? "text-red-600 bg-red-50 border-red-200" :
+                    slot.priority === "recommended" ? "text-amber-600 bg-amber-50 border-amber-200" :
+                    "text-gray-500 bg-gray-50 border-gray-200"
+                  }`}>
+                    {slot.priority === "required" ? "Required" : slot.priority === "recommended" ? "Recommended" : "Optional"}
+                  </span>
+                )}
                 <div className="text-sm font-semibold text-foreground">{slot.label}</div>
                 <div className="text-[11px] text-muted-foreground">{slot.description}</div>
               </div>
