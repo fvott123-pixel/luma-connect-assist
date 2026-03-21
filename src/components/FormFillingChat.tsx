@@ -92,161 +92,95 @@ const LANG_NAMES: Record<string, string> = {
  */
 function shouldSkipField(field: SA466Field, answers: Record<string, string>): boolean {
   const q = field.questionNumber;
-  const get = (id: string) => (answers[id] || "").toLowerCase().trim();
+  const id = field.id;
+  const get = (key: string) => (answers[key] || "").toLowerCase().trim();
 
-  // ── Q10/12 working status — No → skip to Q16 (interpreter section) ──
-  // already handled by skipIf in field definitions
-
-  // ── Q12/14 employee follow-ups — only if was employee ──
-  if (["stillWorking","planningLessHours"].includes(field.id)) {
+  // ─── Personal / Work ───
+  if (["stillWorkingForEmployer","currentHoursWorking","gradualReturnToWork","planningLessHours","riskLosingJob"].includes(id)) {
     if (get("wasEmployee") !== "yes") return true;
   }
-
-  // ── Q17 self-employed follow-up ──
-  if (field.id === "stillSelfEmployed") {
-    if (get("wasSelfEmployed") !== "yes") return true;
+  if (id === "currentHoursWorking" && get("stillWorkingForEmployer") !== "yes") return true;
+  if (id === "gradualReturnToWork" && get("stillWorkingForEmployer") !== "yes") return true;
+  if (id === "stillSelfEmployed" && get("wasSelfEmployed") !== "yes") return true;
+  if (id === "studyHours" && get("doingStudy") !== "yes") return true;
+  if (id === "activityBeforeClaim") {
+    if (get("wasEmployee") === "yes" || get("wasSelfEmployed") === "yes" || get("wasApprentice") === "yes" || get("doingStudy") === "yes") return true;
   }
+  if (["institutionName","releaseDate"].includes(id) && get("chargedWithOffence") !== "yes") return true;
+  if (["preferredLanguage","preferredWrittenLanguage"].includes(id) && get("interpreterNeeded") !== "yes") return true;
 
-  // ── Q21 activity before claim — only if not employee and not self-employed ──
-  if (field.id === "activityBeforeClaim") {
-    if (get("wasEmployee") === "yes" || get("wasSelfEmployed") === "yes") return true;
-  }
-
-  // ── Q116 employer details — only if stopped working ──
-  if (field.id === "employerLastYear") {
-    if (get("stoppedWorkingLastYear") !== "yes") return true;
-  }
-
-  // ── Q22 charged with offence — No → Q25 ──
-  if (q === 23 || q === 24) {
-    if (get("chargedWithOffence") !== "yes") return true;
-  }
-
-  // ── Q38 interpreter — No → skip language questions ──
-  if (field.id === "preferredLanguage" || field.id === "preferredWrittenLanguage") {
-    if (get("interpreterNeeded") === "no") return true;
-  }
-
-  // ── Q45 born in Australia — only if Australian citizen ──
-  if (field.id === "australianCitizenBornHere") {
-    if (get("australianCitizen") === "no") return true;
-  }
-
-  // ── Q46/47 country of birth/citizenship — skip if born in AU ──
-  if (field.id === "countryOfBirth" || field.id === "countryOfCitizenship") {
-    if (get("australianCitizenBornHere") === "yes") return true;
-  }
-
-  // ── Q48-52 visa/residence — skip if Australian citizen ──
-  if (["permanentResident","visaType","arrivalDate","assuranceOfSupport","travelledOverseas"].includes(field.id)) {
+  // ─── Residence ───
+  if (id === "countryOfBirth" && get("australianCitizenBornHere") === "yes") return true;
+  if (["countryOfCitizenship","permanentResident","visaType","visaChanged","livedBefor1965","assuranceOfSupport"].includes(id)) {
     if (get("australianCitizen") === "yes") return true;
   }
 
-  // ── Q54 has partner — No → skip ALL partner questions (Q55-Q76) → go to Q77 ──
-  if (q >= 55 && q <= 76) {
-    if (get("hasPartner") !== "yes") return true;
-  }
-  // Also skip individual partner fields by ID
-  const partnerFields = ["relationshipStatus","partnerFamilyName","partnerFirstName","partnerDob",
-    "partnerCrn","partnerAuthorisation","partnerGender","liveWithPartner","partnerAddress",
-    "partnerPostalAddress","partnerWorking","partnerIncome","partnerReceivingPayment","partnerPaymentType",
-    "partnerCountryOfBirth","partnerCountryOfCitizenship","partnerAustralianCitizen","partnerLivedInAustralia",
-    "partnerTravelledOverseas","partnerVisaType","partnerCurrentVisa","partnerCurrentCountry",
-    "reasonNotWithPartner","liveWithPrimaryTenant"];
-  if (partnerFields.includes(field.id)) {
-    if (get("hasPartner") !== "yes") return true;
-  }
+  // ─── Partner section — Q54 No → skip EVERYTHING Q55-Q80 ───
+  const PARTNER_FIELDS = ["relationshipStatus","partnerCrn","partnerFamilyName","partnerFirstName",
+    "partnerDob","partnerAuthorisation","partnerGender","liveWithPartner","partnerAddress",
+    "reasonNotWithPartner","partnerGettingPayments","partnerLivedInAustralia","partnerCountryOfBirth",
+    "partnerAustralianCitizen","partnerVisaType"];
+  if (PARTNER_FIELDS.includes(id) && get("hasPartner") !== "yes") return true;
+  // Skip partner address/reason if living together
+  if (["partnerAddress","reasonNotWithPartner"].includes(id) && get("liveWithPartner") === "yes") return true;
 
-  // ── Q62 live with partner — Yes → skip to Q67 (no need for partner address) ──
-  if (field.id === "partnerAddress" || field.id === "partnerPostalAddress" || field.id === "reasonNotWithPartner") {
-    if (get("liveWithPartner") === "yes") return true;
-  }
-
-  // ── Q77 current relationship status ──
-  // Q78 deceased partner — ONLY if Widowed AND no current partner
-  if (field.id === "deceasedPartnerName") {
-    const rs = get("currentRelationshipStatus");
-    if (rs !== "widowed") return true;
+  // ─── No-partner relationship status ───
+  if (id === "currentRelationshipStatus" && get("hasPartner") === "yes") return true;
+  // Deceased partner — only if Widowed
+  if (id === "deceasedPartnerName") {
     if (get("hasPartner") === "yes") return true;
-    return false;
+    if (!["widowed"].includes(get("currentRelationshipStatus"))) return true;
   }
-  // Only show ex-partner (Q79/80) if Separated or Divorced (not Widowed, not Never)
-  if (field.id === "exPartnerFamilyName" || field.id === "exPartnerAddress") {
-    const rs = get("currentRelationshipStatus");
-    if (!["separated","divorced"].includes(rs)) return true;
+  // Ex-partner — only if Separated or Divorced
+  if (["exPartnerFamilyName","exPartnerAddress"].includes(id)) {
     if (get("hasPartner") === "yes") return true;
+    if (!["separated","divorced"].includes(get("currentRelationshipStatus"))) return true;
   }
 
-  // ── Q83 own home not living in — No → skip Q84/85 ──
-  if (field.id === "whyNotInOwnHome" || field.id === "soldFormerHome") {
-    if (get("ownHomeNotLiving") !== "yes") return true;
-  }
-
-  // ── Q86 accommodation type — skip boarding questions if own/renting ──
+  // ─── Accommodation / Income ───
   const accType = get("accommodationType");
-  if (["payBoardLodgings","boardLodgingsAmount","totalAmountCharged","boardingSubtype"].includes(field.id)) {
-    if (!["boarding house","boarding"].includes(accType)) return true;
-  }
-  if (field.id === "formalLease" || field.id === "nameOnLease") {
-    if (accType === "own home") return true;
-  }
-  if (field.id === "siteMooringFees") {
-    if (!["caravan","boat","other"].includes(accType)) return true;
-  }
-
-  // ── Q87 site fees — skip if no mooring ──
-  if (field.id === "primaryTenantMarketRate") {
-    if (get("nameOnLease") === "yes") return true;
-  }
-
-  // ── Q89-116 aged care questions — only if in aged care ──
-  const agedCareFields = ["agedCareHomeName","agedCareMoveInDate","howLongStaying","giftLoanEntryFee",
-    "giftLoanAmount","paidEntryContribution","entryContributionMoveDate"];
-  if (agedCareFields.includes(field.id)) {
+  if (id === "whyNotInOwnHome" && get("ownHomeNotLiving") !== "yes") return true;
+  if (id === "soldFormerHome" && get("ownHomeNotLiving") !== "yes") return true;
+  // Aged care questions — only if in aged care/nursing/retirement
+  if (["agedCareHomeName","agedCareMoveInDate","howLongStaying","giftLoanEntryFee","paidEntryContribution"].includes(id)) {
     if (!["aged care home","nursing home","retirement village"].includes(accType)) return true;
   }
-
-  // ── Q96/97 gift/loan only if entry fee paid ──
-  if (field.id === "giftLoanAmount") {
-    if (get("giftLoanEntryFee") !== "yes") return true;
-  }
-
-  // ── Q99 entry contribution — only if in aged care ──
-  if (field.id === "paidEntryContribution") {
-    if (!["aged care home","nursing home","retirement village"].includes(accType)) return true;
-  }
-
-  // ── Q102 transferred assets — skip if not relevant ──
-  // (show to everyone — it's an important asset test question)
-
-  // ── Q109 board/lodgings — only if boarding ──
-  if (field.id === "boardLodgingsAmount") {
-    if (get("payBoardLodgings") !== "yes") return true;
-  }
-
-  // ── Q121-127 under 21 / independence ──
-  if (["liveWithParents","youngerThan18","liveAwayFromParents"].includes(field.id)) {
+  if (id === "giftLoanAmount" && get("giftLoanEntryFee") !== "yes") return true;
+  // Boarding questions — only if boarding
+  if (["boardLodgingsAmount","totalAmountCharged"].includes(id) && get("payBoardLodgings") !== "yes") return true;
+  if (id === "payBoardLodgings" && accType === "own home") return true;
+  if (id === "formalLease" && accType === "own home") return true;
+  if (id === "nameOnLease" && accType === "own home") return true;
+  if (id === "siteMooringFees" && !["other","caravan","boat"].some(v => accType.includes(v))) return true;
+  if (id === "liveWithPrimaryTenant" && get("nameOnLease") === "yes") return true;
+  if (id === "primaryTenantMarketRate" && get("nameOnLease") === "yes") return true;
+  // Employment follow-ups
+  if (id === "employerLastYear" && get("stoppedWorkingLastYear") !== "yes") return true;
+  // Under 21 questions
+  if (["liveWithParents","youngerThan18","liveAwayFromParents","unreasonableToLiveAtHome"].includes(id)) {
     if (get("youngerThan21") !== "yes") return true;
   }
+  // TFN number — only if has TFN
+  if (id === "tfnNumber" && get("hasTFN") !== "yes") return true;
 
-  // ── Q124-127 parental home ──
-  if (field.id === "liveWithParents") {
-    if (get("youngerThan21") !== "yes") return true;
+  // ─── Doctor chain ───
+  if (["doctor2Profession","doctor2Address","doctor2Phone"].includes(id)) {
+    const v = get("doctor2Name");
+    if (!v || ["none","no","n/a"].includes(v)) return true;
   }
-
-  // ── Partner working questions — only if has partner ──
-  if (["partnerWorking","partnerIncome","partnerReceivingPayment","partnerPaymentType"].includes(field.id)) {
-    if (get("hasPartner") !== "yes") return true;
-  }
-
-  // ── Fallback: use field-level skipIf definition ──
-  if (field.skipIf) {
-    const depValue = (answers[field.skipIf.field] || "").toLowerCase().trim();
-    if (depValue === field.skipIf.equals.toLowerCase()) return true;
-    const depFieldDef = SA466_FIELDS.find(f => f.id === field.skipIf!.field);
-    if (depFieldDef?.skipIfValues) {
-      return depFieldDef.skipIfValues.map((v: string) => v.toLowerCase()).includes(depValue);
+  if (["doctor3Name","doctor3Profession","doctor3Address","doctor3Phone"].includes(id)) {
+    const v2 = get("doctor2Name");
+    if (!v2 || ["none","no","n/a"].includes(v2)) return true;
+    if (["doctor3Profession","doctor3Address","doctor3Phone"].includes(id)) {
+      const v3 = get("doctor3Name");
+      if (!v3 || ["none","no","n/a"].includes(v3)) return true;
     }
+  }
+
+  // ─── Fallback: field-level skipIf ───
+  if (field.skipIf) {
+    const depVal = get(field.skipIf.field);
+    if (depVal === field.skipIf.equals.toLowerCase()) return true;
   }
 
   return false;
