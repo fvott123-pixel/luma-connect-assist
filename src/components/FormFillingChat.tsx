@@ -306,7 +306,9 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     if (query.length < 3) { setAddressSuggestions([]); setShowAddressSuggestions(false); return; }
     try {
       // Primary: Nominatim with AU filter — no API key needed
-      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=au&addressdetails=1&limit=8&featuretype=house`;
+      // Bounded to South Australia first, fallback to all AU
+      const saQuery = encodeURIComponent(query + " South Australia");
+      const url = `https://nominatim.openstreetmap.org/search?q=${saQuery}&format=json&countrycodes=au&addressdetails=1&limit=8&viewbox=129,-38,141,-26&bounded=0`;
       const res = await fetch(url, {
         headers: { "Accept-Language": "en-AU", "User-Agent": "LumaFormAssist/1.0" }
       });
@@ -814,6 +816,33 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               <div className="px-3 py-1 bg-muted/20 flex items-center justify-end gap-1">
                 <span className="text-[9px] text-muted-foreground">Powered by OpenStreetMap</span>
               </div>
+            </div>
+          )}
+          {/* None/Skip button for optional fields */}
+          {currentField && !currentField.required && !isComplete && (
+            <div className="flex gap-1.5 mb-1.5 flex-wrap">
+              {["none","not sure","same","skip"].some(s => 
+                currentField.skipText?.toLowerCase() === s || 
+                currentField.lumaQuestion?.toLowerCase().includes("if not") ||
+                !currentField.required
+              ) && (
+                <button
+                  onClick={() => { setInput("none"); setTimeout(() => send(), 50); }}
+                  disabled={isLoading}
+                  className="rounded-lg px-3 py-1 text-xs font-bold border border-border bg-background text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+                >
+                  None
+                </button>
+              )}
+              {currentField.fieldType === "select" && currentField.options?.includes("Not sure") && (
+                <button
+                  onClick={() => { setInput("Not sure"); setTimeout(() => send(), 50); }}
+                  disabled={isLoading}
+                  className="rounded-lg px-3 py-1 text-xs font-bold border border-border bg-background text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+                >
+                  Not sure
+                </button>
+              )}
             </div>
           )}
           <div className="flex gap-2">

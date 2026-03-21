@@ -992,7 +992,7 @@ export const SA466_FIELDS: SA466Field[] = [
   // ────────────────────────────────────────────
   {
     id: "hasPartner",
-    questionNumber: 57,
+    questionNumber: 54,
     pageNumber: 13,
     x: 67, y: 762,
     fieldType: "select",
@@ -1007,32 +1007,6 @@ export const SA466_FIELDS: SA466Field[] = [
     
       "No":  { x: 180, y: 710 },
     },
-  },
-  {
-    id: "partnerName",
-    questionNumber: 58,
-    pageNumber: 13,
-    x: 51, y: 249,
-    fieldType: "text",
-    label: "Partner's Full Name",
-    section: "partner",
-    lumaQuestion: "What is your partner's full name?",
-    required: true,
-    skipIf: { field: "hasPartner", equals: "No", goTo: 65 },
-    maxWidth: 300,
-  },
-  {
-    id: "partnerDob",
-    questionNumber: 59,
-    pageNumber: 13,
-    x: 49, y: 125,
-    fieldType: "date",
-    label: "Partner's Date of Birth",
-    section: "partner",
-    lumaQuestion: "What is your partner's date of birth?",
-    required: true,
-    skipIf: { field: "hasPartner", equals: "No", goTo: 65 },
-    dateBoxes: { ddX: 130, ddY: 660, mmX: 165, mmY: 660, yyyyX: 200, yyyyY: 660 },
   },
   {
     id: "partnerCrn",
