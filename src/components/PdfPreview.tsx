@@ -19,6 +19,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   const [totalPages, setTotalPages] = useState(37);
   const [pageImage, setPageImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
@@ -96,10 +97,12 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
 
   // Trigger on answers change — 3 second debounce so it doesn't fire mid-sentence
   useEffect(() => {
+    setPending(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
+      setPending(false);
       generateAndRender(answers, signatureDataUrl, targetPageRef.current);
-    }, 3000);
+    }, 5000);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [answers, signatureDataUrl, generateAndRender]);
 
@@ -122,6 +125,7 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
               className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
             >›</button>
           </div>
+          {pending && !loading && <span className="text-[10px] text-muted-foreground">updating…</span>}
           {loading && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
         </div>
       </div>

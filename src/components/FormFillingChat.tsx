@@ -289,6 +289,41 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const SKIP_PATTERNS = /^(none|skip|n\/a|na|not applicable|no answer|pass|don't have|dont have|i don't know|i dont know|nothing|nil|—|-|\.{1,3}|nessuno|salta|non lo so|niente|لا شيء|تخطي|छोड्नुहोस्|không có|bỏ qua)$/i;
 
   const [correctionMode, setCorrectionMode] = useState<{ fieldId: string; fieldIndex: number; label: string } | null>(null);
+  // Address autocomplete
+  const [addressSuggestions, setAddressSuggestions] = useState<string[]>([]);
+  const [showAddressSuggestions, setShowAddressSuggestions] = useState(false);
+  const addressDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchAddressSuggestions = async (query: string) => {
+    if (query.length < 4) { setAddressSuggestions([]); setShowAddressSuggestions(false); return; }
+    try {
+      // Free OpenStreetMap Nominatim API — Australian addresses only
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ", Australia")}&format=json&countrycodes=au&addressdetails=1&limit=6`;
+      const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+      if (res.ok) {
+        const data = await res.json();
+        const formatted = data
+          .filter((r: any) => r.display_name)
+          .map((r: any) => {
+            // Format as "123 Street Name, Suburb SA 5000"
+            const a = r.address || {};
+            const parts = [
+              a.house_number ? `${a.house_number} ${a.road || ""}`.trim() : (a.road || ""),
+              a.suburb || a.town || a.city || a.village || "",
+              a.state_code || a.state || "",
+              a.postcode || "",
+            ].filter(Boolean);
+            return parts.join(", ");
+          })
+          .filter((s: string) => s.length > 5)
+          .slice(0, 5);
+        setAddressSuggestions(formatted);
+        setShowAddressSuggestions(formatted.length > 0);
+      }
+    } catch { setAddressSuggestions([]); }
+  };
+
+  const isAddressField = currentField?.fieldSubtype === "address";
 
   const handleUndo = () => {
     if (fieldIndex <= 0 || isLoading || isComplete) return;
@@ -721,10 +756,31 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       {/* Input */}
       {!isComplete && (
         <div className="border-t border-border bg-card px-3 py-2.5">
+          {/* Address autocomplete suggestions */}
+          {isAddressField && showAddressSuggestions && addressSuggestions.length > 0 && (
+            <div className="mb-2 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+              {addressSuggestions.map((addr, i) => (
+                <button
+                  key={i}
+                  onMouseDown={(e) => { e.preventDefault(); setInput(addr); setShowAddressSuggestions(false); }}
+                  className="w-full px-3 py-2 text-left text-xs text-foreground hover:bg-primary/10 border-b border-border/50 last:border-0"
+                >
+                  📍 {addr}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
             <input
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                if (isAddressField) {
+                  if (addressDebounceRef.current) clearTimeout(addressDebounceRef.current);
+                  addressDebounceRef.current = setTimeout(() => fetchAddressSuggestions(e.target.value), 350);
+                }
+              }}
+              onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
               placeholder={currentField?.fieldType === "date" ? t("form.datePlaceholder") : t("form.placeholder")}
               className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
