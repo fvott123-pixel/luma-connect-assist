@@ -1,258 +1,303 @@
 /**
  * SA466 PDF Pre-fill Engine
  * 
- * Fills the SA466 PDF using named AcroForm fields (field names from the PDF itself).
- * This is the correct approach — same as DocuSign/Adobe Acrobat.
- * No coordinate guessing needed.
+ * Fills named AcroForm fields directly by name — same approach as DocuSign.
+ * Field names come from the PDF's own AcroForm metadata (994 fields).
  */
-import { PDFDocument, PDFTextField, PDFCheckBox, PDFRadioGroup } from "@cantoo/pdf-lib";
-import { SA466_FIELDS } from "./formMaps/sa466Fields";
+import { PDFDocument } from "@cantoo/pdf-lib";
 
 export type SA466FormData = Record<string, string>;
 
-// Cache the template bytes — fetch once, reuse forever
-let _templateCache: ArrayBuffer | null = null;
-
-const PDF_PATHS = [
-  "/forms/DSP/sa466en.pdf",
-  "/forms/CUsersfvottDesktopGovernment Forms/Disability Support Pension/sa466en.pdf",
-];
+// ── Template cache — fetch once, reuse forever ──
+let _cache: ArrayBuffer | null = null;
 
 async function getTemplate(): Promise<ArrayBuffer> {
-  if (_templateCache) return _templateCache;
-  for (const url of PDF_PATHS) {
+  if (_cache) return _cache;
+  for (const url of [
+    "/forms/DSP/sa466en.pdf",
+    "/forms/CUsersfvottDesktopGovernment Forms/Disability Support Pension/sa466en.pdf",
+  ]) {
     try {
       const res = await fetch(url);
       if (res.ok) {
-        _templateCache = await res.arrayBuffer();
-        console.log(`SA466 template cached (${Math.round(_templateCache.byteLength / 1024)}KB)`);
-        return _templateCache;
+        _cache = await res.arrayBuffer();
+        console.log(`SA466 cached (${Math.round(_cache.byteLength / 1024)}KB)`);
+        return _cache;
       }
-    } catch (e) {
-      console.warn("SA466 fetch error:", url, e);
-    }
+    } catch {}
   }
-  throw new Error("Could not load SA466 PDF template.");
+  throw new Error("Could not load SA466 PDF.");
 }
 
-// Values that mean "skip this field"
-const SKIP = new Set([
-  "none", "skip", "n/a", "na", "no answer", "not applicable",
-  "-", "--", ".", "..", "...", "nil", "null", "undefined", "n",
-]);
-
-function shouldSkip(value: string, fieldType: string): boolean {
-  if (!value || value.trim() === "") return true;
-  const v = value.trim().toLowerCase();
-  if (SKIP.has(v)) return true;
-  if (fieldType === "text" && v === "no") return true;
+const SKIP = new Set(["none","skip","n/a","na","nil","null","-","..","no answer","not applicable","n"]);
+function isEmpty(v: string, isSelect = false) {
+  if (!v || v.trim() === "") return true;
+  const lv = v.trim().toLowerCase();
+  if (SKIP.has(lv)) return true;
+  if (!isSelect && lv === "no") return true;
   return false;
 }
 
-function parseDMY(value: string): { d: string; m: string; y: string } | null {
-  const match = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
-  if (!match) return null;
+function parseDMY(v: string): [string, string, string] | null {
+  const m = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (!m) return null;
+  return [m[1].padStart(2,"0"), m[2].padStart(2,"0"), m[3].length===2?`19${m[3]}`:m[3]];
+}
+
+/** Split "123 Smith St, Suburb SA 5000" into address parts + postcode */
+function splitAddress(addr: string): { line1: string; line2: string; line3: string; postcode: string } {
+  // Extract postcode (4 digits at end)
+  const pcMatch = addr.match(/\b(\d{4})\s*$/);
+  const postcode = pcMatch ? pcMatch[1] : "";
+  const clean = addr.replace(/\s*\d{4}\s*$/, "").trim();
+  
+  // Split on commas
+  const parts = clean.split(",").map(s => s.trim()).filter(Boolean);
+  
   return {
-    d: match[1].padStart(2, "0"),
-    m: match[2].padStart(2, "0"),
-    y: match[3].length === 2 ? `19${match[3]}` : match[3],
+    line1: parts[0] || "",
+    line2: parts[1] || "",
+    line3: parts[2] || "",
+    postcode,
   };
 }
 
-/**
- * Set a named text field in the PDF form.
- * Silently skips if field doesn't exist.
- */
-function setTextField(form: any, fieldName: string, value: string) {
-  try {
-    const field = form.getTextField(fieldName);
-    field.setText(value);
-    field.enableReadOnly();
-  } catch {
-    // Field doesn't exist or wrong type — ignore
-  }
+function txt(form: any, field: string, value: string) {
+  if (!value || isEmpty(value)) return;
+  try { form.getTextField(field).setText(value.trim()); } catch {}
 }
 
-/**
- * Set a named checkbox/radio button.
- */
-function setCheckbox(form: any, fieldName: string, value: string) {
-  try {
-    // Try as radio group first
-    try {
-      const radio = form.getRadioGroup(fieldName);
-      radio.select(value);
-      return;
-    } catch {}
-    // Try as checkbox
-    try {
-      const cb = form.getCheckBox(fieldName);
-      cb.check();
-      return;
-    } catch {}
-  } catch {}
+function btn(form: any, field: string, value: string) {
+  if (!value) return;
+  try { form.getRadioGroup(field).select(value); return; } catch {}
+  try { if (value === "Yes") form.getCheckBox(field).check(); } catch {}
+}
+
+function dmy(form: any, prefix: string, value: string) {
+  const parts = parseDMY(value);
+  if (!parts) return;
+  txt(form, `${prefix}.D`, parts[0]);
+  txt(form, `${prefix}.M`, parts[1]);
+  txt(form, `${prefix}.Y`, parts[2]);
+}
+
+function addr(form: any, prefix: string, value: string, postcodeField?: string) {
+  if (!value || isEmpty(value)) return;
+  const { line1, line2, line3, postcode } = splitAddress(value);
+  txt(form, `${prefix}.Address1`, line1);
+  if (line2) txt(form, `${prefix}.Address2`, line2);
+  if (line3) txt(form, `${prefix}.Address3`, line3);
+  // Postcode — use dedicated field if provided, else use prefix.Postcode
+  const pcField = postcodeField || `${prefix}.Postcode`;
+  if (postcode) txt(form, pcField, postcode);
 }
 
 export async function prefillSA466(data: SA466FormData, signatureDataUrl?: string | null): Promise<Uint8Array> {
-  const templateBytes = await getTemplate();
-  const pdfDoc = await PDFDocument.load(templateBytes.slice(0), { ignoreEncryption: true, password: "" });
+  const pdfDoc = await PDFDocument.load((await getTemplate()).slice(0), { ignoreEncryption: true, password: "" });
   const form = pdfDoc.getForm();
 
-  // ── Personal Details (Step 1) ──
-  if (data.familyName) setTextField(form, "Q2.FamilyName", data.familyName);
-  if (data.firstName)  setTextField(form, "Q2.FirstName", data.firstName);
-  if (data.secondName && !shouldSkip(data.secondName, "text")) setTextField(form, "Q2.SecondName", data.secondName);
-
-  // Title (radio group)
-  if (data.title) {
-    const titleMap: Record<string, string> = { Mr: "Mr", Mrs: "Mrs", Miss: "Miss", Ms: "Ms", Dr: "Other" };
-    const mapped = titleMap[data.title];
-    if (mapped) setCheckbox(form, "Title1", mapped);
-    if (data.title === "Dr") setTextField(form, "TitleOther1", "Dr");
-  }
-
-  // DOB
-  if (data.dob) {
-    const parts = parseDMY(data.dob);
-    if (parts) {
-      setTextField(form, "Q3.DateOfBirth.D", parts.d);
-      setTextField(form, "Q3.DateOfBirth.M", parts.m);
-      setTextField(form, "Q3.DateOfBirth.Y", parts.y);
-    }
-  }
-
-  // Gender (radio)
-  if (data.gender) {
-    const gMap: Record<string, string> = { Male: "Male", Female: "Female", Other: "NB" };
-    if (gMap[data.gender]) setCheckbox(form, "Q5", gMap[data.gender]);
-  }
-
-  // CRN
+  // ══ Q1 — CRN ══
   if (data.crn) {
-    const crn = data.crn.replace(/\D/g, "");
-    ["0","1","2","3"].forEach((i, idx) => {
-      if (crn[idx]) setTextField(form, `CRN.${i}`, crn[idx]);
-    });
+    const c = data.crn.replace(/\D/g, "");
+    ["0","1","2","3"].forEach((i,idx) => { if(c[idx]) txt(form, `CRN.${i}`, c[idx]); });
   }
 
-  // Address
-  if (data.permanentAddress) {
-    const parts = data.permanentAddress.split(",").map(s => s.trim());
-    setTextField(form, "Q6.Address1", parts[0] || "");
-    if (parts[1]) setTextField(form, "Q6.Address2", parts.slice(1, -1).join(", ") || "");
-  }
-  if (data.postcode) setTextField(form, "Q6.Postcode", data.postcode);
+  // ══ Q2 — Name ══
+  txt(form, "Q2.FamilyName", data.familyName || "");
+  txt(form, "Q2.FirstName",  data.firstName || "");
+  if (!isEmpty(data.secondName || "")) txt(form, "Q2.SecondName", data.secondName || "");
 
-  // Postal address (only if different)
-  if (data.postalAddressSame?.toLowerCase() !== "yes" && data.postalAddress && !shouldSkip(data.postalAddress, "text")) {
-    const parts = data.postalAddress.split(",").map(s => s.trim());
-    setTextField(form, "Q7.Address1", parts[0] || "");
-    if (parts[1]) setTextField(form, "Q7.Address2", parts.slice(1).join(", ") || "");
-    if (data.postalPostcode) setTextField(form, "Q7.Postcode", data.postalPostcode);
+  // Title (radio: Mr Mrs Miss Ms Mx + TitleOther1 for Dr/Other)
+  if (data.title) {
+    const t = data.title;
+    const mapped = ["Mr","Mrs","Miss","Ms","Mx"].includes(t) ? t : "Other";
+    try { form.getRadioGroup("Title1").select(mapped); } catch {}
+    if (mapped === "Other") txt(form, "TitleOther1", t);
   }
 
-  // Contact
-  if (data.mobile && !shouldSkip(data.mobile, "text"))    setTextField(form, "Q8.MobileNo", data.mobile);
-  if (data.homePhone && !shouldSkip(data.homePhone, "text")) setTextField(form, "Q8.PhoneNo", data.homePhone);
-  if (data.email && !shouldSkip(data.email, "text"))      setTextField(form, "Q8.Email", data.email);
+  // ══ Q3 — Date of Birth ══
+  if (data.dob) dmy(form, "Q3.DateOfBirth", data.dob);
 
-  // Bank details
-  if (data.bankName)       setTextField(form, "BankName", data.bankName);
-  if (data.bsb)            setTextField(form, "BSB", data.bsb);
-  if (data.accountNumber)  setTextField(form, "ACCNo", data.accountNumber);
-  if (data.accountName)    setTextField(form, "AccNames", data.accountName);
-
-  // Partner
-  if (data.partnerName) {
-    const parts = data.partnerName.trim().split(" ");
-    setTextField(form, "Partner_FirstName", parts[0] || "");
-    if (parts.length > 1) setTextField(form, "Partner_FamilyName", parts.slice(1).join(" "));
+  // ══ Q4 — Other names ══
+  if (!isEmpty(data.otherNames || "")) {
+    txt(form, "Q4Details.0.OtherName", data.otherNames || "");
   }
-  if (data.partnerFamilyName) setTextField(form, "Partner_FamilyName", data.partnerFamilyName);
-  if (data.partnerFirstName)  setTextField(form, "Partner_FirstName", data.partnerFirstName);
-  if (data.partnerDob) {
-    const parts = parseDMY(data.partnerDob);
+
+  // ══ Q5 — Gender ══
+  if (data.gender) {
+    const g = { Male:"Male", Female:"Female", Other:"NB" } as Record<string,string>;
+    if (g[data.gender]) btn(form, "Q5", g[data.gender]);
+  }
+
+  // ══ Q6 — Permanent address ══
+  if (data.permanentAddress && !isEmpty(data.permanentAddress)) {
+    // If postcode provided separately, append it
+    const fullAddr = data.postcode && !data.permanentAddress.match(/\d{4}$/)
+      ? `${data.permanentAddress}, ${data.postcode}`
+      : data.permanentAddress;
+    addr(form, "Q6", fullAddr);
+    // Also set postcode separately if provided
+    if (data.postcode) txt(form, "Q6.Postcode", data.postcode);
+  }
+
+  // ══ Q7 — Postal address ══
+  if (data.postalAddressSame?.toLowerCase() !== "yes" && !isEmpty(data.postalAddress || "")) {
+    addr(form, "Q7", data.postalAddress || "");
+  }
+
+  // ══ Q8 — Contact details ══
+  if (!isEmpty(data.mobile || ""))    txt(form, "Q8.MobileNo", data.mobile || "");
+  if (!isEmpty(data.homePhone || "")) txt(form, "Q8.PhoneNo",  data.homePhone || "");
+  if (!isEmpty(data.email || ""))     txt(form, "Q8.Email",    data.email || "");
+
+  // ══ Q9 — Authorise person ══
+  if (data.authorisePerson) btn(form, "Q9", data.authorisePerson);
+
+  // ══ Q10 — Previously working ══
+  if (data.previouslyWorking) btn(form, "Q10", data.previouslyWorking);
+
+  // ══ Q12 — Still working ══
+  if (data.currentlyWorking) btn(form, "Q18", data.currentlyWorking);
+
+  // ══ Q13 — Interpreter needed ══
+  if (data.interpreterNeeded) btn(form, "Q38", data.interpreterNeeded);
+  if (!isEmpty(data.preferredLanguage || "")) txt(form, "Q39", data.preferredLanguage || "");
+
+  // ══ Q38/39/40 — Language ══
+  if (!isEmpty(data.preferredWrittenLanguage || "")) txt(form, "Q40", data.preferredWrittenLanguage || "");
+
+  // ══ Q43/44 — Overseas travel ══
+  if (data.travelledOverseas) btn(form, "Q44", data.travelledOverseas);
+
+  // ══ Q45 — Australian citizen born in Australia ══
+  if (data.australianCitizenBornHere) btn(form, "Q45", data.australianCitizenBornHere);
+
+  // ══ Q46/47 — Country of birth/citizenship ══
+  if (!isEmpty(data.countryOfBirth || ""))        txt(form, "Q46", data.countryOfBirth || "");
+  if (!isEmpty(data.countryOfCitizenship || ""))  txt(form, "Q47Details.CoC", data.countryOfCitizenship || "");
+
+  // ══ Q47/48 — Australian citizen / permanent resident ══
+  if (data.australianCitizen) btn(form, "Q47", data.australianCitizen);
+  if (data.permanentResident) btn(form, "Q48", data.permanentResident);
+
+  // ══ Q49 — Visa type ══
+  if (!isEmpty(data.visaType || "")) txt(form, "Q49.VisaClass", data.visaType || "");
+
+  // ══ Q53 — Travelled overseas ══
+  if (data.travelledOverseas) btn(form, "Q53", data.travelledOverseas);
+
+  // ══ Q54 — Have a partner ══
+  if (data.hasPartner) btn(form, "Q54", data.hasPartner);
+
+  // ══ Q55 — Relationship status ══
+  if (data.relationshipStatus) {
+    const rs: Record<string,string> = {
+      "Married": "Married",
+      "De facto": "DeFacto",
+      "Registered": "RR",
+    };
+    if (rs[data.relationshipStatus]) btn(form, "Q55", rs[data.relationshipStatus]);
+  }
+
+  // ══ Partner details (Q56-Q64) ══
+  if (!isEmpty(data.partnerFamilyName || "")) txt(form, "Partner_FamilyName", data.partnerFamilyName || "");
+  if (!isEmpty(data.partnerFirstName  || "")) txt(form, "Partner_FirstName",  data.partnerFirstName  || "");
+  if (data.partnerDob) dmy(form, "Q58", data.partnerDob);
+  if (data.partnerCrn) {
+    const c = (data.partnerCrn || "").replace(/\D/g,"");
+    ["0","1","2","3"].forEach((i,idx) => { if(c[idx]) txt(form, `CRN.Partner.${i}`, c[idx]); });
+  }
+  if (data.partnerWorking) btn(form, "Q59", data.partnerWorking);
+  if (!isEmpty(data.partnerAddress || "")) addr(form, "Q63", data.partnerAddress || "");
+
+  // ══ Q71 — Partner country of birth ══
+  if (!isEmpty(data.partnerCountryOfBirth || "")) txt(form, "Q71", data.partnerCountryOfBirth || "");
+
+  // ══ Q83 — Own a home ══
+  if (data.ownHome)    btn(form, "Q83", data.ownHome === "Yes" ? "Yes" : "No");
+  if (data.hasVehicle) btn(form, "Q102", data.hasVehicle);
+
+  // ══ Q86 — Accommodation type ══
+  if (data.accommodationType) btn(form, "Q86", data.accommodationType);
+
+  // ══ Q120 — Tax file number ══
+  if (data.receivingPayment) btn(form, "Q35", data.receivingPayment);
+
+  // ══ Bank details ══
+  txt(form, "BankName", data.bankName     || "");
+  txt(form, "BSB",      data.bsb          || "");
+  txt(form, "ACCNo",    data.accountNumber|| "");
+  txt(form, "AccNames", data.accountName  || "");
+
+  // ══ Step 6 — Medical ══
+  // Q131 — Medical condition description
+  if (!isEmpty(data.primaryCondition || "")) txt(form, "Q131", data.primaryCondition || "");
+
+  // Q132 — When condition started (MM/YYYY)
+  if (!isEmpty(data.conditionStartDate || "")) {
+    const parts = parseDMY(data.conditionStartDate || "");
     if (parts) {
-      setTextField(form, "Q58.D", parts.d);
-      setTextField(form, "Q58.M", parts.m);
-      setTextField(form, "Q58.Y", parts.y);
+      txt(form, "Q132.M", parts[1]);
+      txt(form, "Q132.Y", parts[2]);
+    } else {
+      // Try MM/YYYY format
+      const my = (data.conditionStartDate || "").match(/^(\d{1,2})[\/\-](\d{4})$/);
+      if (my) {
+        txt(form, "Q132.M", my[1].padStart(2,"0"));
+        txt(form, "Q132.Y", my[2]);
+      }
     }
   }
 
-  // Medical condition (free text)
-  if (data.primaryCondition && !shouldSkip(data.primaryCondition, "text")) {
-    setTextField(form, "Q131", data.primaryCondition);
-  }
+  // Q133 — Condition category (blind, intellectual etc)
+  if (data.conditionPermanent) btn(form, "Q133", data.conditionPermanent);
 
-  // Treating doctors (3 slots)
-  if (data.treatingDoctor)   setTextField(form, "Q140.D0.FullName", data.treatingDoctor);
-  if (data.doctorProfession) setTextField(form, "Q140.D0.Profession", data.doctorProfession);
-  if (data.doctorAddress)    setTextField(form, "Q140.D0.Address1", data.doctorAddress);
-  if (data.doctorPhone)      setTextField(form, "Q140.D0.PhoneNo", data.doctorPhone);
+  // Q135 — Treatment details
+  if (!isEmpty(data.currentTreatment || ""))  txt(form, "Q135.CT", data.currentTreatment || "");
+  if (!isEmpty(data.pastTreatment    || ""))  txt(form, "Q135.PT", data.pastTreatment    || "");
+  if (!isEmpty(data.futureTreatment  || ""))  txt(form, "Q135.FT", data.futureTreatment  || "");
 
-  if (data.doctor2Name && !shouldSkip(data.doctor2Name, "text")) {
-    setTextField(form, "Q140.D1.FullName", data.doctor2Name);
-    if (data.doctor2Profession) setTextField(form, "Q140.D1.Profession", data.doctor2Profession);
-    if (data.doctor2Address)    setTextField(form, "Q140.D1.Address1", data.doctor2Address);
-    if (data.doctor2Phone)      setTextField(form, "Q140.D1.PhoneNo", data.doctor2Phone);
-  }
-
-  if (data.doctor3Name && !shouldSkip(data.doctor3Name, "text")) {
-    setTextField(form, "Q140.D2.FullName", data.doctor3Name);
-    if (data.doctor3Profession) setTextField(form, "Q140.D2.Profession", data.doctor3Profession);
-    if (data.doctor3Address)    setTextField(form, "Q140.D2.Address1", data.doctor3Address);
-    if (data.doctor3Phone)      setTextField(form, "Q140.D2.PhoneNo", data.doctor3Phone);
-  }
-
-  // Yes/No radio buttons — map Luma answers to PDF field names
-  const yesNoFields: Record<string, string> = {
-    australianCitizen:       "Q47",
-    permanentResident:       "Q48",
-    travelledOverseas:       "Q53",
-    receivingPayment:        "Q35",
-    interpreterNeeded:       "Q13",
-    currentlyWorking:        "Q18",
-    lookingForWork:          "Q22",
-    hospitalised:            "Q83",
-    conditionPermanent:      "Q133",
-    hasPartner:              "Q54",
-    partnerWorking:          "Q59",
-    partnerReceivingPayment: "Q62",
-    hasShares:               "Q96",
-    hasSuperannuation:       "Q99",
-    hasVehicle:              "Q102",
-    receivingCompensation:   "Q85",
-    ownHome:                 "Q86",
-  };
-
-  for (const [lumaId, pdfField] of Object.entries(yesNoFields)) {
-    const val = data[lumaId];
-    if (val === "Yes" || val === "No") {
-      setCheckbox(form, pdfField, val);
+  // Q140 — Treating doctors (3 slots)
+  const doctors = [
+    { name: data.treatingDoctor,   prof: data.doctorProfession,  addr_: data.doctorAddress,  phone: data.doctorPhone,  pc: data.doctorPostcode  },
+    { name: data.doctor2Name,      prof: data.doctor2Profession, addr_: data.doctor2Address, phone: data.doctor2Phone, pc: data.doctor2Postcode },
+    { name: data.doctor3Name,      prof: data.doctor3Profession, addr_: data.doctor3Address, phone: data.doctor3Phone, pc: data.doctor3Postcode },
+  ];
+  doctors.forEach((doc, i) => {
+    if (!doc.name || isEmpty(doc.name)) return;
+    const pfx = `Q140.D${i}`;
+    txt(form, `${pfx}.FullName`,  doc.name);
+    txt(form, `${pfx}.Profession`,doc.prof || "");
+    if (doc.addr_) {
+      const { line1, line2, postcode } = splitAddress(doc.addr_);
+      txt(form, `${pfx}.Address1`, line1);
+      if (line2) txt(form, `${pfx}.Address2`, line2);
+      if (doc.pc || postcode) txt(form, `${pfx}.Postcode`, doc.pc || postcode);
     }
-  }
+    txt(form, `${pfx}.PhoneNo`, doc.phone || "");
+  });
 
-  // Work capacity
-  if (data.workCapacity) setCheckbox(form, "Q30", data.workCapacity === "Yes" ? "Yes" : "No");
+  // ══ Q136/137 — Work history ══
+  if (data.hospitalised) btn(form, "Q83", data.hospitalised);
 
-  // Signature
+  // ══ Q139 — Program of support ══
+  if (data.programOfSupport) btn(form, "Q139", data.programOfSupport);
+
+  // ══ Signature ══
   if (signatureDataUrl) {
     try {
-      const base64 = signatureDataUrl.split(",")[1];
-      const sigBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      const sigImage = await pdfDoc.embedPng(sigBytes);
+      const b64 = signatureDataUrl.split(",")[1];
+      const sigBytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const img = await pdfDoc.embedPng(sigBytes);
       const pages = pdfDoc.getPages();
-      const lastPage = pages[pages.length - 1];
-      if (lastPage) {
-        const { width: pw } = lastPage.getSize();
-        lastPage.drawImage(sigImage, { x: pw - 220, y: 80, width: 160, height: 50 });
+      const last = pages[pages.length - 1];
+      if (last) {
+        const { width } = last.getSize();
+        last.drawImage(img, { x: width - 220, y: 80, width: 160, height: 50 });
       }
-    } catch (e) {
-      console.warn("Signature embed failed:", e);
-    }
+    } catch {}
   }
 
-  // Flatten the form so fields are embedded as visible text
   form.flatten();
   return pdfDoc.save();
 }
@@ -261,10 +306,7 @@ export function downloadPdf(bytes: Uint8Array, filename: string) {
   const blob = new Blob([bytes], { type: "application/pdf" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
