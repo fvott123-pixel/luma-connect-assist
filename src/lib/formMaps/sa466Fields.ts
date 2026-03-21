@@ -725,106 +725,226 @@ export const SA466_FIELDS: SA466Field[] = [
     },
   },
 
-  // ────────────────────────────────────────────
-  // PART E — WORK HISTORY (pages 10-12)
-  // ────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════
+  // PART E — WORK HISTORY (Q10-Q21, Q116-Q118)
+  // SA466 form work decision tree:
+  // Q10 employee? Yes→Q12 No→Q16
+  // Q16 self-employed? Yes→Q17 No→Q18
+  // Q18 apprentice? → Q19 school → Q20 study → Q21 other
+  // Q116 stopped working last 12 months? Yes→employer details
+  // ════════════════════════════════════════════════════════
+
+  // Q10 — Were you an employee before this claim?
   {
-    id: "currentlyWorking",
-    questionNumber: 39,
+    id: "wasEmployee",
+    questionNumber: 10,
     pageNumber: 7,
-    x: 350, y: 690,
+    x: 67, y: 405,
     fieldType: "select",
-    label: "Currently Working",
+    label: "Was Employee Before Claim",
     section: "work",
     options: ["Yes", "No"],
-    lumaQuestion: "Are you currently working at all — even a few hours a week?",
+    lumaQuestion: "Before you needed to make this claim, were you working as an employee for someone (not self-employed)? 💼",
     required: true,
     tickPositions: {
-      "Yes": { x: 130, y: 710 },
+      "Yes": { x: 67, y: 390 },
+      "No":  { x: 67, y: 405 },
     },
   },
+
+  // Q12 — Still working for that employer?
   {
-    id: "employerName",
-    questionNumber: 40,
+    id: "stillWorking",
+    questionNumber: 12,
+    pageNumber: 7,
+    x: 67, y: 575,
+    fieldType: "select",
+    label: "Still Working For Employer",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Are you still working for that employer now?",
+    required: false,
+    skipIf: { field: "wasEmployee", equals: "No", goTo: 16 },
+    tickPositions: {
+      "Yes": { x: 67, y: 575 },
+      "No":  { x: 67, y: 591 },
+    },
+  },
+
+  // Q14 — Planning to work less hours?
+  {
+    id: "planningLessHours",
+    questionNumber: 14,
+    pageNumber: 7,
+    x: 350, y: 779,
+    fieldType: "select",
+    label: "Planning Less Hours",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Are you planning on working less hours because of your disability or medical condition?",
+    required: false,
+    skipIf: { field: "wasEmployee", equals: "No", goTo: 16 },
+    tickPositions: {
+      "Yes": { x: 350, y: 763 },
+      "No":  { x: 350, y: 779 },
+    },
+  },
+
+  // Q16 — Self-employed / contractor / primary producer?
+  {
+    id: "wasSelfEmployed",
+    questionNumber: 16,
+    pageNumber: 7,
+    x: 67, y: 194,
+    fieldType: "select",
+    label: "Was Self-Employed",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Before you needed to make this claim, were you self-employed, a contractor, or a primary producer (e.g. farmer)?",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 67, y: 179 },
+      "No":  { x: 67, y: 194 },
+    },
+  },
+
+  // Q17 — Still doing self-employed work?
+  {
+    id: "stillSelfEmployed",
+    questionNumber: 17,
+    pageNumber: 7,
+    x: 67, y: 109,
+    fieldType: "select",
+    label: "Still Self-Employed",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Are you still doing this self-employed work now?",
+    required: false,
+    skipIf: { field: "wasSelfEmployed", equals: "No", goTo: 18 },
+    tickPositions: {
+      "Yes": { x: 67, y: 93 },
+      "No":  { x: 67, y: 109 },
+    },
+  },
+
+  // Q21 — What were you doing before claim (if not working or studying)?
+  {
+    id: "activityBeforeClaim",
+    questionNumber: 21,
+    pageNumber: 8,
+    x: 51, y: 293,
+    fieldType: "text",
+    label: "Activity Before Claim",
+    section: "work",
+    lumaQuestion: "Before you needed to make this claim, what were you doing? For example: looking after children, voluntary work, caring for someone, unemployed, recovering from illness. Say 'none' if not applicable.",
+    required: false,
+    skipText: "none",
+    maxWidth: 350,
+    skipIf: { field: "wasEmployee", equals: "Yes", goTo: 22 },
+  },
+
+  // Q116 — Stopped working in last 12 months? (KEY BRANCHING QUESTION)
+  {
+    id: "stoppedWorkingLastYear",
+    questionNumber: 116,
+    pageNumber: 22,
+    x: 67, y: 696,
+    fieldType: "select",
+    label: "Stopped Working Last Year",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "In the last 12 months, did you (or your partner) stop working for any employer or stop self-employment? 📋",
+    lumaExplanation: "This includes any paid job, self-employment, or business that stopped in the last 12 months.",
+    required: false,
+    tickPositions: {
+      "Yes": { x: 67, y: 696 },
+      "No":  { x: 67, y: 711 },
+    },
+  },
+
+  // Q116 detail — Employer name (only if stopped working)
+  {
+    id: "employerLastYear",
+    questionNumber: 116,
     pageNumber: 22,
     x: 339, y: 355,
     fieldType: "text",
-    label: "Employer Name",
+    label: "Employer or Business Name",
     section: "work",
-    lumaQuestion: "What is the name of your employer?",
-    required: true,
-    skipIf: { field: "currentlyWorking", equals: "No", goTo: 43 },
-    maxWidth: 250,
-  },
-  {
-    id: "hoursPerWeek",
-    questionNumber: 41,
-    pageNumber: 22,
-    x: 339, y: 480,
-    fieldType: "text",
-    label: "Hours Per Week",
-    section: "work",
-    lumaQuestion: "How many hours do you work per week?",
-    required: true,
-    skipIf: { field: "currentlyWorking", equals: "No", goTo: 43 },
-  },
-  {
-    id: "weeklyPay",
-    questionNumber: 42,
-    pageNumber: 22,
-    x: 339, y: 480,
-    fieldType: "text",
-    label: "Weekly Pay (before tax)",
-    section: "work",
-    lumaQuestion: "How much do you get paid each week before tax?",
-    lumaExplanation: "An approximate amount is fine. This is your gross pay — the amount before any deductions.",
-    required: true,
-    skipIf: { field: "currentlyWorking", equals: "No", goTo: 43 },
-  },
-  {
-    id: "lastWorkedDate",
-    questionNumber: 43,
-    pageNumber: 22,
-    x: 337, y: 442,
-    fieldType: "date",
-    label: "Date Last Worked",
-    section: "work",
-    lumaQuestion: "When did you last work? An approximate date is fine. If you have never worked, say \"never\".",
+    lumaQuestion: "What was the name of your employer or business you stopped working for?",
     required: false,
-    skipText: "never",
-    dateBoxes: { ddX: 130, ddY: 600, mmX: 165, mmY: 600, yyyyX: 200, yyyyY: 600 },
+    skipText: "none",
+    maxWidth: 250,
+    skipIf: { field: "stoppedWorkingLastYear", equals: "No", goTo: 117 },
   },
+
+  // Q117 — Leave entitlement payments?
   {
-    id: "lookingForWork",
-    questionNumber: 44,
-    pageNumber: 8,
-    x: 350, y: 775,
+    id: "leaveEntitlementPayment",
+    questionNumber: 117,
+    pageNumber: 22,
+    x: 350, y: 644,
     fieldType: "select",
-    label: "Looking For Work",
+    label: "Leave Entitlement Payment",
     section: "work",
     options: ["Yes", "No"],
-    lumaQuestion: "Are you currently looking for work?",
-    required: true,
+    lumaQuestion: "In the last 12 months, did you (or your partner) get or expect to get any leave entitlement payments? This includes annual leave, long service leave, maternity leave, or leave entitlements cashed in when you stopped work.",
+    required: false,
     tickPositions: {
-      "Yes": { x: 130, y: 710 },
+      "Yes": { x: 350, y: 644 },
+      "No":  { x: 350, y: 660 },
     },
   },
+
+  // Q118 — Redundancy payment?
   {
-    id: "workCapacity",
-    questionNumber: 45,
-    pageNumber: 9,
-    x: 67, y: 564,
+    id: "redundancyPayment",
+    questionNumber: 118,
+    pageNumber: 23,
+    x: 70, y: 565,
     fieldType: "select",
-    label: "Able to Work 15+ Hours",
+    label: "Redundancy Payment",
     section: "work",
-    options: ["Yes", "No", "Not sure"],
-    lumaQuestion: "Do you think you could work 15 or more hours a week in any kind of job?",
-    lumaExplanation: "Be honest — there is no wrong answer. Your medical report will help Centrelink assess this.",
-    required: true,
+    options: ["Yes", "No"],
+    lumaQuestion: "Did you (or your partner) get a redundancy payment in the last 2 years?",
+    required: false,
     tickPositions: {
-      "Yes": { x: 130, y: 680 },
-      "No": { x: 180, y: 680 },
-      "Not sure": { x: 230, y: 680 },
+      "Yes": { x: 70, y: 565 },
+      "No":  { x: 70, y: 581 },
+    },
+  },
+
+  // Q137 — What type of work in last 12 months? (for medical assessment)
+  {
+    id: "previousWorkType",
+    questionNumber: 137,
+    pageNumber: 32,
+    x: 58, y: 524,
+    fieldType: "text",
+    label: "Type of Work Last 12 Months",
+    section: "work",
+    lumaQuestion: "In the last 12 months, what type of work did you do? For example: office work, labouring, retail, driving. Say 'none' if you didn't work.",
+    required: false,
+    skipText: "none",
+    maxWidth: 250,
+  },
+
+  // Q137 — Did condition affect ability to do that work?
+  {
+    id: "workAffectedByCondition",
+    questionNumber: 137,
+    pageNumber: 32,
+    x: 74, y: 479,
+    fieldType: "select",
+    label: "Work Affected by Condition",
+    section: "work",
+    options: ["Yes", "No"],
+    lumaQuestion: "Did your condition affect your ability to do that work?",
+    required: false,
+    skipIf: { field: "previousWorkType", equals: "none", goTo: 138 },
+    tickPositions: {
+      "Yes": { x: 74, y: 479 },
+      "No":  { x: 74, y: 495 },
     },
   },
 

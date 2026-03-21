@@ -161,9 +161,17 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   // ══ Q9 — Authorise person ══
   if (data.authorisePerson) btn(form, "Q9", data.authorisePerson);
 
-  // ══ Q10/12 — Work ══
-  if (data.previouslyWorking) btn(form, "Q10", data.previouslyWorking);
-  if (data.currentlyWorking)  btn(form, "Q18", data.currentlyWorking);
+  // ══ Q10-Q21 Work history ══
+  if (data.wasEmployee)       btn(form, "Q10", data.wasEmployee);
+  if (data.stillWorking)      btn(form, "Q12", data.stillWorking);
+  if (data.planningLessHours) btn(form, "Q14", data.planningLessHours);
+  if (data.wasSelfEmployed)   btn(form, "Q16", data.wasSelfEmployed);
+  if (data.stillSelfEmployed) btn(form, "Q17", data.stillSelfEmployed);
+  if (!isEmpty(data.activityBeforeClaim||"")) txt(form, "Q21", data.activityBeforeClaim||"");
+  // ══ Q116-Q118 Employment income ══
+  if (data.stoppedWorkingLastYear)  btn(form, "Q116", data.stoppedWorkingLastYear);
+  if (!isEmpty(data.employerLastYear||"")) txt(form, "116.Name.0", data.employerLastYear||"");
+  if (data.leaveEntitlementPayment) btn(form, "Q117", data.leaveEntitlementPayment);
 
   // ══ Q11 — Study hours ══
   if (!isEmpty(data.studyHours || "")) txt(form, "20.D.Hours", data.studyHours || "");

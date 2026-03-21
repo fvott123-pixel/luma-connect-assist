@@ -97,6 +97,26 @@ function shouldSkipField(field: SA466Field, answers: Record<string, string>): bo
   // ── Q10/12 working status — No → skip to Q16 (interpreter section) ──
   // already handled by skipIf in field definitions
 
+  // ── Q12/14 employee follow-ups — only if was employee ──
+  if (["stillWorking","planningLessHours"].includes(field.id)) {
+    if (get("wasEmployee") !== "yes") return true;
+  }
+
+  // ── Q17 self-employed follow-up ──
+  if (field.id === "stillSelfEmployed") {
+    if (get("wasSelfEmployed") !== "yes") return true;
+  }
+
+  // ── Q21 activity before claim — only if not employee and not self-employed ──
+  if (field.id === "activityBeforeClaim") {
+    if (get("wasEmployee") === "yes" || get("wasSelfEmployed") === "yes") return true;
+  }
+
+  // ── Q116 employer details — only if stopped working ──
+  if (field.id === "employerLastYear") {
+    if (get("stoppedWorkingLastYear") !== "yes") return true;
+  }
+
   // ── Q22 charged with offence — No → Q25 ──
   if (q === 23 || q === 24) {
     if (get("chargedWithOffence") !== "yes") return true;
@@ -143,10 +163,12 @@ function shouldSkipField(field: SA466Field, answers: Record<string, string>): bo
   }
 
   // ── Q77 current relationship status ──
-  // Only show deceased partner (Q78) if Widowed
+  // Q78 deceased partner — ONLY if Widowed AND no current partner
   if (field.id === "deceasedPartnerName") {
-    if (get("currentRelationshipStatus") !== "widowed") return true;
+    const rs = get("currentRelationshipStatus");
+    if (rs !== "widowed") return true;
     if (get("hasPartner") === "yes") return true;
+    return false;
   }
   // Only show ex-partner (Q79/80) if Separated or Divorced (not Widowed, not Never)
   if (field.id === "exPartnerFamilyName" || field.id === "exPartnerAddress") {
