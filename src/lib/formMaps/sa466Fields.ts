@@ -2176,10 +2176,10 @@ export const SA466_FIELDS: SA466Field[] = [
     section: "partner",
     lumaQuestion: "What was your deceased partner's full name?",
     required: false, skipText: "none",
-    skipIf: { field: "currentRelationshipStatus", equals: "Separated", goTo: 81 },
+    skipIf: { field: "currentRelationshipStatus", equals: "Never had partner", goTo: 81 },
   },
 
-  // Q79 — Ex-partner family name
+  // Q79 — Ex-partner family name (only if separated or divorced)
   {
     id: "exPartnerFamilyName", questionNumber: 79, pageNumber: 15,
     x: 335, y: 333, fieldType: "text", label: "Ex-Partner Family Name",

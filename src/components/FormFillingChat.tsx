@@ -86,17 +86,147 @@ const LANG_NAMES: Record<string, string> = {
 /**
  * Determine whether a field should be skipped based on skip logic and current answers.
  */
+/**
+ * SA466 form skip logic — mirrors the actual "Go to Q__" rules printed on the form.
+ * Based on: PDF AcroForm GoTo field analysis.
+ */
 function shouldSkipField(field: SA466Field, answers: Record<string, string>): boolean {
-  if (!field.skipIf) return false;
-  const depValue = answers[field.skipIf.field]?.toLowerCase().trim() || "";
-  // Check the primary skipIf equals value
-  if (depValue === field.skipIf.equals.toLowerCase()) return true;
-  // Check if the dependency field's value is in skipIfValues
-  const depField = field.skipIf.field;
-  const depFieldDef = SA466_FIELDS.find(f => f.id === depField);
-  if (depFieldDef?.skipIfValues) {
-    return depFieldDef.skipIfValues.map(v => v.toLowerCase()).includes(depValue);
+  const q = field.questionNumber;
+  const get = (id: string) => (answers[id] || "").toLowerCase().trim();
+
+  // ── Q10/12 working status — No → skip to Q16 (interpreter section) ──
+  // already handled by skipIf in field definitions
+
+  // ── Q22 charged with offence — No → Q25 ──
+  if (q === 23 || q === 24) {
+    if (get("chargedWithOffence") !== "yes") return true;
   }
+
+  // ── Q38 interpreter — No → skip language questions ──
+  if (field.id === "preferredLanguage" || field.id === "preferredWrittenLanguage") {
+    if (get("interpreterNeeded") === "no") return true;
+  }
+
+  // ── Q45 born in Australia — only if Australian citizen ──
+  if (field.id === "australianCitizenBornHere") {
+    if (get("australianCitizen") === "no") return true;
+  }
+
+  // ── Q46/47 country of birth/citizenship — skip if born in AU ──
+  if (field.id === "countryOfBirth" || field.id === "countryOfCitizenship") {
+    if (get("australianCitizenBornHere") === "yes") return true;
+  }
+
+  // ── Q48-52 visa/residence — skip if Australian citizen ──
+  if (["permanentResident","visaType","arrivalDate","assuranceOfSupport","travelledOverseas"].includes(field.id)) {
+    if (get("australianCitizen") === "yes") return true;
+  }
+
+  // ── Q54 has partner — No → skip ALL partner questions (Q55-Q76) → go to Q77 ──
+  if (q >= 55 && q <= 76) {
+    if (get("hasPartner") !== "yes") return true;
+  }
+  // Also skip individual partner fields by ID
+  const partnerFields = ["relationshipStatus","partnerFamilyName","partnerFirstName","partnerDob",
+    "partnerCrn","partnerAuthorisation","partnerGender","liveWithPartner","partnerAddress",
+    "partnerPostalAddress","partnerWorking","partnerIncome","partnerReceivingPayment","partnerPaymentType",
+    "partnerCountryOfBirth","partnerCountryOfCitizenship","partnerAustralianCitizen","partnerLivedInAustralia",
+    "partnerTravelledOverseas","partnerVisaType","partnerCurrentVisa","partnerCurrentCountry",
+    "reasonNotWithPartner","liveWithPrimaryTenant"];
+  if (partnerFields.includes(field.id)) {
+    if (get("hasPartner") !== "yes") return true;
+  }
+
+  // ── Q62 live with partner — Yes → skip to Q67 (no need for partner address) ──
+  if (field.id === "partnerAddress" || field.id === "partnerPostalAddress" || field.id === "reasonNotWithPartner") {
+    if (get("liveWithPartner") === "yes") return true;
+  }
+
+  // ── Q77 current relationship status ──
+  // Only show deceased partner (Q78) if Widowed
+  if (field.id === "deceasedPartnerName") {
+    if (get("currentRelationshipStatus") !== "widowed") return true;
+    if (get("hasPartner") === "yes") return true;
+  }
+  // Only show ex-partner (Q79/80) if Separated or Divorced (not Widowed, not Never)
+  if (field.id === "exPartnerFamilyName" || field.id === "exPartnerAddress") {
+    const rs = get("currentRelationshipStatus");
+    if (!["separated","divorced"].includes(rs)) return true;
+    if (get("hasPartner") === "yes") return true;
+  }
+
+  // ── Q83 own home not living in — No → skip Q84/85 ──
+  if (field.id === "whyNotInOwnHome" || field.id === "soldFormerHome") {
+    if (get("ownHomeNotLiving") !== "yes") return true;
+  }
+
+  // ── Q86 accommodation type — skip boarding questions if own/renting ──
+  const accType = get("accommodationType");
+  if (["payBoardLodgings","boardLodgingsAmount","totalAmountCharged","boardingSubtype"].includes(field.id)) {
+    if (!["boarding house","boarding"].includes(accType)) return true;
+  }
+  if (field.id === "formalLease" || field.id === "nameOnLease") {
+    if (accType === "own home") return true;
+  }
+  if (field.id === "siteMooringFees") {
+    if (!["caravan","boat","other"].includes(accType)) return true;
+  }
+
+  // ── Q87 site fees — skip if no mooring ──
+  if (field.id === "primaryTenantMarketRate") {
+    if (get("nameOnLease") === "yes") return true;
+  }
+
+  // ── Q89-116 aged care questions — only if in aged care ──
+  const agedCareFields = ["agedCareHomeName","agedCareMoveInDate","howLongStaying","giftLoanEntryFee",
+    "giftLoanAmount","paidEntryContribution","entryContributionMoveDate"];
+  if (agedCareFields.includes(field.id)) {
+    if (!["aged care home","nursing home","retirement village"].includes(accType)) return true;
+  }
+
+  // ── Q96/97 gift/loan only if entry fee paid ──
+  if (field.id === "giftLoanAmount") {
+    if (get("giftLoanEntryFee") !== "yes") return true;
+  }
+
+  // ── Q99 entry contribution — only if in aged care ──
+  if (field.id === "paidEntryContribution") {
+    if (!["aged care home","nursing home","retirement village"].includes(accType)) return true;
+  }
+
+  // ── Q102 transferred assets — skip if not relevant ──
+  // (show to everyone — it's an important asset test question)
+
+  // ── Q109 board/lodgings — only if boarding ──
+  if (field.id === "boardLodgingsAmount") {
+    if (get("payBoardLodgings") !== "yes") return true;
+  }
+
+  // ── Q121-127 under 21 / independence ──
+  if (["liveWithParents","youngerThan18","liveAwayFromParents"].includes(field.id)) {
+    if (get("youngerThan21") !== "yes") return true;
+  }
+
+  // ── Q124-127 parental home ──
+  if (field.id === "liveWithParents") {
+    if (get("youngerThan21") !== "yes") return true;
+  }
+
+  // ── Partner working questions — only if has partner ──
+  if (["partnerWorking","partnerIncome","partnerReceivingPayment","partnerPaymentType"].includes(field.id)) {
+    if (get("hasPartner") !== "yes") return true;
+  }
+
+  // ── Fallback: use field-level skipIf definition ──
+  if (field.skipIf) {
+    const depValue = (answers[field.skipIf.field] || "").toLowerCase().trim();
+    if (depValue === field.skipIf.equals.toLowerCase()) return true;
+    const depFieldDef = SA466_FIELDS.find(f => f.id === field.skipIf!.field);
+    if (depFieldDef?.skipIfValues) {
+      return depFieldDef.skipIfValues.map((v: string) => v.toLowerCase()).includes(depValue);
+    }
+  }
+
   return false;
 }
 
