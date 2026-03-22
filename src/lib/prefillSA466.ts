@@ -24,7 +24,7 @@ async function getTemplate(): Promise<ArrayBuffer> {
   throw new Error("Could not load SA466 PDF.");
 }
 
-const SKIP = new Set(["none","skip","n/a","na","nil","null","-","..","no answer","not applicable","n","unknown","don't know","dont know"]);
+const SKIP = new Set(["none","skip","n/a","na","nil","null","-","..","no answer","not applicable","n","unknown","don't know","dont know","same","same as above","as above"]);
 
 function isEmpty(v: string, isSelect = false): boolean {
   if (!v || v.trim() === "") return true;
@@ -150,10 +150,10 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   txt(form, "Q2.FirstName",  data.firstName  || "");
   if (!isEmpty(data.secondName || "")) txt(form, "Q2.SecondName", data.secondName || "");
 
-  // Title
+  // Title — Title1 is a checkbox-array widget, use btn() for reliable selection
   if (data.title) {
     const mapped = ["Mr","Mrs","Miss","Ms","Mx"].includes(data.title) ? data.title : "Other";
-    try { form.getRadioGroup("Title1").select(mapped); } catch {}
+    btn(form, "Title1", mapped);
     if (mapped === "Other") txt(form, "TitleOther1", data.title);
   }
 
@@ -189,8 +189,9 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   }
 
   // ══ Q8 — Contact ══
-  if (!isEmpty(data.mobile    || "")) txt(form, "Q8.MobileNo", data.mobile    || "");
-  if (!isEmpty(data.homePhone || "")) txt(form, "Q8.PhoneNo",  data.homePhone || "");
+  // Q8.MobileNo and Q8.PhoneNo are COMB fields (MaxLen 10) — strip spaces/dashes before writing
+  if (!isEmpty(data.mobile    || "")) txt(form, "Q8.MobileNo", (data.mobile    || "").replace(/[\s\-]/g, ""));
+  if (!isEmpty(data.homePhone || "")) txt(form, "Q8.PhoneNo",  (data.homePhone || "").replace(/[\s\-]/g, ""));
   if (!isEmpty(data.email     || "")) txt(form, "Q8.Email",    data.email     || "");
 
   // ══ Q9 — Authorise person ══
@@ -431,9 +432,21 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.formalLease) btn(form, "Q115", data.formalLease);
   if (!isEmpty(data.incomeLastYear || ""))  txt(form, "Q105.Pay", data.incomeLastYear || "");
   if (data.redundancyPayment)           btn(form, "Q118", data.redundancyPayment);
-  // Q120 TFN — two separate checkbox fields: Q120Y (has TFN) and Q120P (partner TFN)
+  // Q120 TFN — Q120YDetails.0/1/2 are COMB fields (MaxLen 3 each) — split TFN into 3 groups
   if (data.hasTFN) btn(form, "Q120Y", data.hasTFN);
-  if (!isEmpty(data.tfnNumber || "")) txt(form, "Q120YDetails.0", data.tfnNumber || "");
+  if (!isEmpty(data.tfnNumber || "")) {
+    const tfn = (data.tfnNumber || "").replace(/\D/g, "");
+    txt(form, "Q120YDetails.0", tfn.slice(0, 3));
+    txt(form, "Q120YDetails.1", tfn.slice(3, 6));
+    txt(form, "Q120YDetails.2", tfn.slice(6, 9));
+  }
+  // Partner TFN split
+  if (!isEmpty(data.partnerTfnNumber || "")) {
+    const ptfn = (data.partnerTfnNumber || "").replace(/\D/g, "");
+    txt(form, "Q120PDetails.0", ptfn.slice(0, 3));
+    txt(form, "Q120PDetails.1", ptfn.slice(3, 6));
+    txt(form, "Q120PDetails.2", ptfn.slice(6, 9));
+  }
   if (data.youngerThan21)               btn(form, "Q121", data.youngerThan21);
   if (data.liveWithParents)             btn(form, "Q124", data.liveWithParents);
   if (data.youngerThan18)               btn(form, "Q125", data.youngerThan18);
@@ -511,7 +524,8 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
       if (line2) txt(form, `Q140.D${i}.Address2`, line2);
       if (postcode) txt(form, `Q140.D${i}.Postcode`, postcode);
     }
-    txt(form, `Q140.D${i}.PhoneNo`, doc.phone || "");
+    // Q140.D*.PhoneNo is a COMB field (MaxLen 10) — strip spaces/dashes
+    txt(form, `Q140.D${i}.PhoneNo`, (doc.phone || "").replace(/[\s\-]/g, ""));
   });
 
   if (data.difficultyEvidence) btn(form, "Q142", data.difficultyEvidence);
