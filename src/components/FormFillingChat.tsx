@@ -396,10 +396,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const fetchAddressSuggestions = async (query: string) => {
     if (query.length < 3) { setAddressSuggestions([]); setShowAddressSuggestions(false); return; }
     try {
-      // Primary: Nominatim with AU filter — no API key needed
-      // Bounded to South Australia first, fallback to all AU
-      const saQuery = encodeURIComponent(query + " South Australia");
-      const url = `https://nominatim.openstreetmap.org/search?q=${saQuery}&format=json&countrycodes=au&addressdetails=1&limit=8&viewbox=129,-38,141,-26&bounded=0`;
+      // Nominatim OpenStreetMap — no API key needed, AU only
+      const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&countrycodes=au&addressdetails=1&limit=8`;
       const res = await fetch(url, {
         headers: { "Accept-Language": "en-AU", "User-Agent": "LumaFormAssist/1.0" }
       });
@@ -433,7 +431,10 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     } catch { setAddressSuggestions([]); }
   };
 
-  const isAddressField = currentField?.fieldSubtype === "address";
+  // Trigger autocomplete on any field whose id contains "address" (case-insensitive)
+  // Covers: permanentAddress, postalAddress, partnerAddress, partnerPostalAddress, doctorAddress, etc.
+  const isAddressField = currentField?.fieldSubtype === "address" ||
+    /address/i.test(currentField?.id || "");
 
   const handleUndo = () => {
     if (fieldIndex <= 0 || isLoading || isComplete) return;
@@ -927,8 +928,22 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
                     key={i}
                     onMouseDown={(e) => {
                       e.preventDefault();
-                      setInput(addr);
                       setShowAddressSuggestions(false);
+                      setInput("");
+                      // Extract postcode from selected address (last 4-digit number)
+                      const pcMatch = addr.match(/\b(\d{4})\b/);
+                      const extractedPostcode = pcMatch ? pcMatch[1] : null;
+                      // Build street-only part (strip postcode for the address field itself)
+                      const streetOnly = addr.replace(/,\s*\d{4}\b/, "").trim();
+                      // Auto-submit the address answer
+                      processAnswer(streetOnly);
+                      // If the NEXT field is postcode and we extracted one, pre-fill it
+                      if (extractedPostcode) {
+                        const nextField = activeFields[fieldIndex + 1];
+                        if (nextField?.id === "postcode" || nextField?.id === "partnerPostcode") {
+                          setAnswers(prev => ({ ...prev, [nextField.id]: extractedPostcode }));
+                        }
+                      }
                     }}
                     className="w-full px-3 py-2.5 text-left hover:bg-primary/8 border-b border-border/20 last:border-0 transition-colors group"
                   >
@@ -997,8 +1012,16 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               }}
               onBlur={() => setTimeout(() => setShowAddressSuggestions(false), 200)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-              placeholder={currentField?.fieldType === "date" ? t("form.datePlaceholder") : t("form.placeholder")}
-              className="flex-1 rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder={
+                isAddressField
+                  ? "Start typing your address…"
+                  : currentField?.fieldType === "date"
+                  ? t("form.datePlaceholder")
+                  : t("form.placeholder")
+              }
+              className={`flex-1 rounded-xl border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 ${
+                isAddressField ? "border-primary/40 focus:ring-primary/40" : "border-border"
+              }`}
               dir={lang === "AR" ? "rtl" : "ltr"}
               disabled={isLoading}
             />
