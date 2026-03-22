@@ -401,10 +401,16 @@ export const SA466_FIELDS: SA466Field[] = [
     required: true, maxWidth: 150 },
 
   { id: "accountName", questionNumber: 34, pageNumber: 10, x: 51, y: 320,
-    fieldType: "text", label: "Account Holder Name", section: "payment",
+    fieldType: "text", label: "Account Holder Name (First)", section: "payment",
     pdfField: "AccNames",
     lumaQuestion: "What name is on the bank account? Usually your full name.",
     required: true, maxWidth: 220 },
+
+  { id: "accountName2", questionNumber: 34, pageNumber: 10, x: 51, y: 308,
+    fieldType: "text", label: "Account Holder Name (Second)", section: "payment",
+    pdfField: "AccNames",
+    lumaQuestion: "Is there a second account holder? If yes, give their full name. Say 'none' if it's just your account.",
+    required: false, skipText: "none", maxWidth: 220 },
 
   { id: "receivingOtherPayments", questionNumber: 35, pageNumber: 10, x: 350, y: 565,
     fieldType: "select", label: "Receiving Other Payments", section: "payment",

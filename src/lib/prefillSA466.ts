@@ -246,7 +246,11 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   txt(form, "BankName", data.bankName      || "");
   if (data.bsb) txt(form, "BSB", (data.bsb || "").replace(/[\-\s]/g, "").slice(0,6));
   txt(form, "ACCNo",    data.accountNumber || "");
-  txt(form, "AccNames", data.accountName   || "");
+  // Combine first and second account holder names into the one AccNames field
+  const accNames = [data.accountName, data.accountName2]
+    .filter(n => n && n.trim() && !["none","no","n/a"].includes(n.trim().toLowerCase()))
+    .join("\n");
+  txt(form, "AccNames", accNames);
 
   // ══ Q35/36 ══
   if (data.receivingOtherPayments)  btn(form, "Q35", data.receivingOtherPayments);  // FIX: was receivingPayment
