@@ -1211,7 +1211,7 @@ export const SA466_FIELDS: SA466Field[] = [
     lumaQuestion: "What is today's date? 📅 (This goes on the declaration — DD/MM/YYYY)",
     lumaExplanation: "Enter today's date in DD/MM/YYYY format — for example 22/03/2026. This is the date you're signing the form.",
     required: true,
-    placeholder: "e.g. 22/03/2026" },
+    skipText: "e.g. 22/03/2026" },
 
   { id: "declarationComplete", questionNumber: 144, pageNumber: 36, x: 0, y: 0,
     fieldType: "select", label: "Declaration", section: "declaration",

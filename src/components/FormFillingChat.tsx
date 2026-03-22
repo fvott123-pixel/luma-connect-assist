@@ -433,7 +433,7 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
 
   // Trigger autocomplete on any field whose id contains "address" (case-insensitive)
   // Covers: permanentAddress, postalAddress, partnerAddress, partnerPostalAddress, doctorAddress, etc.
-  const isAddressField = currentField?.fieldSubtype === "address" ||
+  const isAddressField = currentField?.fieldType === "text" &&
     /address/i.test(currentField?.id || "");
 
   const handleUndo = () => {
