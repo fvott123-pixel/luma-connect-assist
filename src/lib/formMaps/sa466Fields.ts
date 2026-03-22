@@ -275,7 +275,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Have you been charged with a criminal offence and are currently in custody, on remand, or under psychiatric confinement?",
     required: false,
-    tickPositions: { "Yes":{x:67,y:191}, "No":{x:67,y:207} } },
+    tickPositions: { "Yes":{x:67,y:191}, "No":{x:67,y:207} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "⚠️ Important — Eligibility Warning: You may not be eligible for the Disability Support Pension while in custody or under psychiatric confinement.\n\nBefore completing this form, please call Centrelink on 132 717 to discuss your options.\n\nI've noted your answer and we can continue, but please make that call as soon as possible."
+    } },
 
   { id: "institutionName", questionNumber: 23, pageNumber: 8, x: 334, y: 151,
     fieldType: "text", label: "Institution Name", section: "personal",
@@ -311,7 +315,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Are you (or your partner) claiming Rent Assistance with this application?",
     required: false,
-    tickPositions: { "Yes":{x:350,y:713}, "No":{x:350,y:729} } },
+    tickPositions: { "Yes":{x:350,y:713}, "No":{x:350,y:729} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "📋 Extra form needed: Since you're claiming Rent Assistance, you'll need to complete and return the Income and Assets form (SA369).\n\nDownload it at servicesaustralia.gov.au/forms or ask Centrelink for a paper copy.\n\nI'll add this to your checklist at the end."
+    } },
 
   { id: "gettingNZPayment", questionNumber: 27, pageNumber: 8, x: 350, y: 585,
     fieldType: "select", label: "Getting NZ Payment", section: "payment",
@@ -327,7 +335,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Are you (or your partner) getting a payment from the Department of Veterans' Affairs (DVA)?",
     required: false,
-    tickPositions: { "Yes":{x:350,y:517}, "No":{x:350,y:532} } },
+    tickPositions: { "Yes":{x:350,y:517}, "No":{x:350,y:532} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "📄 Document needed: You'll need to attach a letter or document showing the reference number and details of each DVA payment.\n\nIf you don't have this, contact the Department of Veterans' Affairs on 1800 838 372.\n\nI'll add this to your checklist at the end."
+    } },
 
   { id: "selfEmploymentAssistance", questionNumber: 29, pageNumber: 8, x: 350, y: 448,
     fieldType: "select", label: "Self Employment Assistance", section: "payment",
@@ -335,7 +347,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Are you (or your partner) getting Self-Employment Assistance payments?",
     required: false,
-    tickPositions: { "Yes":{x:350,y:432}, "No":{x:350,y:448} } },
+    tickPositions: { "Yes":{x:350,y:432}, "No":{x:350,y:448} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "📄 Document needed: You'll need to attach a letter or document showing the reference number and details of each Self-Employment Assistance payment.\n\nContact your provider if you don't have this document.\n\nI'll add this to your checklist at the end."
+    } },
 
   { id: "gettingWorkersComp", questionNumber: 30, pageNumber: 9, x: 67, y: 548,
     fieldType: "select", label: "Getting Workers Compensation", section: "payment",
@@ -352,7 +368,11 @@ export const SA466_FIELDS: SA466Field[] = [
     lumaQuestion: "Have you (or your partner) told Centrelink about this compensation before?",
     required: false,
     skipIf: { field: "gettingWorkersComp", equals: "No", goTo: 32 },
-    tickPositions: { "Yes":{x:67,y:422}, "No":{x:67,y:500} } },
+    tickPositions: { "Yes":{x:67,y:422}, "No":{x:67,y:500} },
+    conditionalNotice: {
+      whenAnswer: "No",
+      notice: "📋 Extra form needed: Since Centrelink hasn't been told about this compensation before, you'll need to complete and return a Compensation and Damages form (Mod C).\n\nDownload it at servicesaustralia.gov.au/forms or ask Centrelink for a copy.\n\nI'll add this to your checklist at the end."
+    } },
 
   { id: "gettingIncomeStream", questionNumber: 32, pageNumber: 9, x: 67, y: 346,
     fieldType: "select", label: "Getting Income Stream", section: "payment",
@@ -392,7 +412,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Are you (or your partner) currently getting any government payments? For example: JobSeeker, Youth Allowance, Carer Payment, Age Pension.",
     required: false,
-    tickPositions: { "Yes":{x:350,y:565}, "No":{x:350,y:581} } },
+    tickPositions: { "Yes":{x:350,y:565}, "No":{x:350,y:581} },
+    conditionalNotice: {
+      whenAnswer: "No",
+      notice: "📋 Extra form needed: Since you're not currently getting a Centrelink income support payment, you'll also need to complete and return the Income and Assets form (SA369).\n\nDownload it at servicesaustralia.gov.au/forms or ask Centrelink for a paper copy.\n\nI'll add this to your checklist at the end."
+    } },
 
   { id: "changedCircumstances", questionNumber: 36, pageNumber: 10, x: 350, y: 515,
     fieldType: "select", label: "Changed Circumstances", section: "payment",
@@ -959,7 +983,11 @@ export const SA466_FIELDS: SA466Field[] = [
     lumaQuestion: "Is it unreasonable for you to live at home with your parents? For example, due to family breakdown or violence.",
     required: false,
     skipIf: { field: "youngerThan21", equals: "No", goTo: 128 },
-    tickPositions: { "Yes":{x:70,y:453}, "No":{x:70,y:486} } },
+    tickPositions: { "Yes":{x:70,y:453}, "No":{x:70,y:486} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "📞 Action needed: Since it's unreasonable for you to live at home, you'll need to make an appointment with a Centrelink Social Worker to discuss your situation.\n\nCall Centrelink on 132 717 to arrange this appointment.\n\nI'll add this to your checklist at the end."
+    } },
 
   // ═══════════════════════════════════════════════════════════════
   // PART D — DISABILITY AND MEDICAL CONDITION (Q131-Q142)

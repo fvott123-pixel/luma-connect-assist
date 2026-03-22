@@ -232,6 +232,8 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
   const initRef = useRef(false);
   const [fieldIndex, setFieldIndex] = useState(resumedFieldIndex || 0);
   const [sessionCode, setSessionCode] = useState<string>("");
+  // Track all conditional notices triggered during this session
+  const [triggeredNotices, setTriggeredNotices] = useState<{ qNum: number; notice: string }[]>([]);
 
   // Active fields — recalculated whenever answers change
   const activeFields = getActiveFields(answers, prefilled);
@@ -635,6 +637,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       ? currentField.conditionalNotice.notice
       : null;
 
+    if (matchingNotice) {
+      setTriggeredNotices(prev => {
+        // Avoid duplicates if the same question is re-answered
+        const filtered = prev.filter(n => n.qNum !== currentField.questionNumber);
+        return [...filtered, { qNum: currentField.questionNumber, notice: matchingNotice }];
+      });
+    }
+
     setMessages(prev => [
       ...prev,
       { role: "user", content: cleanAnswer },
@@ -772,6 +782,20 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       },
       onDone: () => {
         setIsLoading(false);
+        // Show checklist of any additional actions triggered during the form
+        setTriggeredNotices(prev => {
+          if (prev.length > 0) {
+            const sorted = [...prev].sort((a, b) => a.qNum - b.qNum);
+            const checklistLines = sorted.map(n =>
+              `• Q${n.qNum}: ${n.notice.split('\n')[0].replace(/^[📋📄⚠️📞]\s*/, '').trim()}`
+            ).join('\n');
+            setMessages(msgs => [...msgs, {
+              role: "assistant",
+              content: `📋 Your SA466 Checklist — things you still need to do:\n\n${checklistLines}\n\nAll items above were flagged during your form. Download your SA466 now, then work through this list before posting.`,
+            }]);
+          }
+          return prev;
+        });
         setIsComplete(true);
         onComplete?.();
       },
