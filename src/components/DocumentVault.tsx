@@ -189,6 +189,25 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.nationality) mapped.nationality = data.nationality;
       if (data.expiryDate) mapped.passportExpiry = data.expiryDate;
       if (data.gender) mapped.passport_gender = data.gender;
+
+      // ── Derive citizenship/residence answers from passport nationality ──
+      if (data.nationality) {
+        const nat = data.nationality.toLowerCase();
+        if (nat.includes("austral")) {
+          // Australian passport → Australian citizen, currently living in Australia
+          mapped.australianCitizen = "Yes";
+          mapped.currentCountry = "Australia";
+        }
+      }
+      // Country of birth — if passport or OCR provides it
+      if (data.placeOfBirth || data.countryOfBirth) {
+        const birthPlace = (data.placeOfBirth || data.countryOfBirth || "").toLowerCase();
+        mapped.countryOfBirth = data.placeOfBirth || data.countryOfBirth || "";
+        if (birthPlace.includes("austral")) {
+          mapped.australianCitizenBornHere = "Yes";
+        }
+      }
+
       // Also set primary fields from passport (preferred by Services Australia)
       if (data.firstName) mapped.firstName = data.firstName;
       if (data.surname) mapped.familyName = data.surname;
@@ -391,6 +410,8 @@ function summarizeExtraction(documentType: string, data: Record<string, string>)
     passportNumber: "passport number", nationality: "nationality", passportExpiry: "passport expiry",
     passport_firstName: "passport name", passport_familyName: "passport surname", passport_dob: "passport DOB",
     passport_gender: "passport gender",
+    australianCitizen: "Australian citizenship", currentCountry: "current country",
+    australianCitizenBornHere: "born in Australia", countryOfBirth: "country of birth",
   };
 
   const docLabels: Record<string, string> = {
