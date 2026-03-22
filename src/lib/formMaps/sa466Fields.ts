@@ -26,6 +26,7 @@ export interface SA466Field {
   tickPositions?: Record<string, { x: number; y: number }>;
   skipIf?: { field: string; equals: string; goTo: number };
   signatureNotice?: string;
+  conditionalNotice?: { whenAnswer: string; notice: string }; // Extra Luma notice shown when answer matches
   pdfField?: string; // Named AcroForm field (primary)
   pdfFields?: string[]; // Multiple named fields
 }
@@ -157,7 +158,11 @@ export const SA466_FIELDS: SA466Field[] = [
     options: ["Yes","No"],
     lumaQuestion: "Do you want to authorise another person or organisation to deal with Centrelink on your behalf? This is optional.",
     required: false,
-    tickPositions: { "Yes":{x:67,y:575}, "No":{x:67,y:591} } },
+    tickPositions: { "Yes":{x:67,y:575}, "No":{x:67,y:591} },
+    conditionalNotice: {
+      whenAnswer: "Yes",
+      notice: "📋 Important: Since you want to authorise someone, you also need to complete a separate form — the SS313 (Authorising a person or organisation to enquire or act on your behalf).\n\nYou can do this online at servicesaustralia.gov.au/actforyou, or ask Centrelink for a paper copy.\n\nI've ticked Yes on your SA466. Let's continue with this form — we'll note that you need to complete the SS313 as well."
+    } },
 
   // ─── Work History ───
 

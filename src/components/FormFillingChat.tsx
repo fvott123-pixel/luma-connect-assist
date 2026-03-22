@@ -629,7 +629,17 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
     setAnswers(newAnswers);
     onAnswersChange?.(newAnswers);
     onFieldAnswered?.(currentField.id);
-    setMessages(prev => [...prev, { role: "user", content: cleanAnswer }]);
+
+    // Check for a conditional notice on this field (e.g. Q9 Yes → SS313 reminder)
+    const matchingNotice = currentField.conditionalNotice?.whenAnswer.toLowerCase() === cleanAnswer.toLowerCase()
+      ? currentField.conditionalNotice.notice
+      : null;
+
+    setMessages(prev => [
+      ...prev,
+      { role: "user", content: cleanAnswer },
+      ...(matchingNotice ? [{ role: "assistant" as const, content: matchingNotice }] : []),
+    ]);
     setIsLoading(true);
     setInput("");
 
