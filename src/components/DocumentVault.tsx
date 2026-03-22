@@ -560,145 +560,221 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
     onComplete(allExtracted, [...summaries, ...discrepancies]);
   };
 
-  return (
-    <div className="flex flex-col items-center py-8 px-4 max-w-2xl mx-auto">
-      <LumaAvatar size={72} />
-      <h2 className="mt-5 font-serif text-xl font-extrabold text-foreground text-center">
-        📁 Document Vault
-      </h2>
-      <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
-        <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
-        <span className="text-[11px] text-muted-foreground">—</span>
-        <span className="text-[11px] text-muted-foreground">{formConfig.formName}</span>
-      </div>
-      <p className="mt-2 text-sm text-muted-foreground text-center max-w-md leading-relaxed">
-        {formConfig.intro}
-      </p>
-      <div className="mt-3 flex gap-3 text-[10px]">
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Required</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Recommended</span>
-        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block"/>Optional</span>
-      </div>
+  // Count auto-filled fields so far
+  const autoFilledCount = Object.keys(allExtracted).length;
+  const doneCount = Object.values(statuses).filter(s => s === "done").length;
 
-      <div className="mt-6 w-full space-y-3">
-        {DOCUMENT_SLOTS_FOR_FORM.map(slot => {
-          const status = statuses[slot.id];
-          return (
-            <div
-              key={slot.id}
-              className={`flex items-center gap-3 rounded-xl border p-3 transition-all ${
-                status === "done"
-                  ? "border-green-500/50 bg-green-50 dark:bg-green-900/10"
-                  : status === "uploading"
-                  ? "border-primary/40 bg-primary/5"
-                  : status === "error"
-                  ? "border-destructive/40 bg-destructive/5"
-                  : status === "skipped"
-                  ? "border-border bg-muted/30 opacity-60"
-                  : "border-border bg-card hover:border-primary/30"
-              }`}
-            >
-              <span className="text-2xl shrink-0">{status === "done" ? "✅" : slot.icon}</span>
-              <div className="flex-1 min-w-0">
-                {slot.priority && (
-                  <span className={`inline-block text-[9px] font-bold px-1.5 py-0.5 rounded-full border mb-0.5 ${
-                    slot.priority === "required" ? "text-red-600 bg-red-50 border-red-200" :
-                    slot.priority === "recommended" ? "text-amber-600 bg-amber-50 border-amber-200" :
-                    "text-gray-500 bg-gray-50 border-gray-200"
-                  }`}>
-                    {slot.priority === "required" ? "Required" : slot.priority === "recommended" ? "Recommended" : "Optional"}
-                  </span>
-                )}
-                <div className="text-sm font-semibold text-foreground">{slot.label}</div>
-                <div className="text-[11px] text-muted-foreground">{slot.description}</div>
-              </div>
-              <div className="shrink-0 flex gap-1.5">
-                {status === "idle" || status === "error" ? (
-                  <>
-                    <input
-                      ref={el => { fileRefs.current[slot.id] = el; }}
-                      type="file"
-                      accept={slot.accept}
-                      capture="environment"
-                      className="hidden"
-                      onChange={e => {
-                        const file = e.target.files?.[0];
-                        if (file) handleFile(slot, file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <button
-                      onClick={() => fileRefs.current[slot.id]?.click()}
-                      className="rounded-lg bg-primary px-3 py-1.5 text-[11px] font-bold text-primary-foreground transition-all hover:opacity-90"
-                    >
-                      📸 Upload
-                    </button>
-                    <button
-                      onClick={() => handleSkipSlot(slot.id)}
-                      className="rounded-lg border border-border px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-muted transition-all"
-                    >
-                      Skip
-                    </button>
-                  </>
-                ) : status === "uploading" ? (
-                  <div className="flex items-center gap-1.5 text-[11px] text-primary">
-                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                    Reading…
-                  </div>
-                ) : status === "done" ? (
-                  <span className="text-[11px] font-bold text-green-600">Done ✓</span>
-                ) : status === "skipped" ? (
-                  <span className="text-[11px] text-muted-foreground">Skipped</span>
-                ) : null}
-              </div>
+  // Group slots by priority
+  const required    = DOCUMENT_SLOTS_FOR_FORM.filter(s => s.priority === "required");
+  const recommended = DOCUMENT_SLOTS_FOR_FORM.filter(s => s.priority === "recommended");
+  const optional    = DOCUMENT_SLOTS_FOR_FORM.filter(s => !s.priority || s.priority === "optional");
+
+  const renderSlot = (slot: DocSlot) => {
+    const status = statuses[slot.id];
+    return (
+      <div
+        key={slot.id}
+        className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 transition-all ${
+          status === "done"    ? "border-green-500/40 bg-green-50 dark:bg-green-900/10" :
+          status === "uploading" ? "border-primary/40 bg-primary/5 animate-pulse" :
+          status === "error"   ? "border-destructive/40 bg-destructive/5" :
+          status === "skipped" ? "border-border/40 bg-muted/20 opacity-50" :
+          "border-border bg-card hover:border-primary/30 hover:bg-primary/5"
+        }`}
+      >
+        {/* Icon */}
+        <span className="text-lg shrink-0 w-6 text-center">
+          {status === "done" ? "✅" : status === "error" ? "⚠️" : slot.icon}
+        </span>
+
+        {/* Label + description */}
+        <div className="flex-1 min-w-0">
+          <div className={`text-[12px] font-semibold leading-tight ${status === "skipped" ? "text-muted-foreground" : "text-foreground"}`}>
+            {slot.label}
+          </div>
+          <div className="text-[10px] text-muted-foreground truncate">{slot.description}</div>
+        </div>
+
+        {/* Action */}
+        <div className="shrink-0 flex items-center gap-1">
+          {status === "idle" || status === "error" ? (
+            <>
+              <input
+                ref={el => { fileRefs.current[slot.id] = el; }}
+                type="file"
+                accept={slot.accept}
+                capture="environment"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(slot, file);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                onClick={() => fileRefs.current[slot.id]?.click()}
+                className="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground hover:opacity-90 transition-all"
+              >
+                📸 Upload
+              </button>
+              <button
+                onClick={() => handleSkipSlot(slot.id)}
+                className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted transition-all"
+              >
+                Skip
+              </button>
+            </>
+          ) : status === "uploading" ? (
+            <div className="flex items-center gap-1 text-[11px] text-primary font-semibold">
+              <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Reading…
             </div>
-          );
-        })}
+          ) : status === "done" ? (
+            <span className="text-[11px] font-bold text-green-600 whitespace-nowrap">✓ Done</span>
+          ) : status === "skipped" ? (
+            <button
+              onClick={() => setStatuses(prev => ({ ...prev, [slot.id]: "idle" }))}
+              className="text-[10px] text-muted-foreground hover:text-primary underline"
+            >
+              Undo
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col w-full">
+
+      {/* ── HERO BANNER ── */}
+      <div className="px-6 pt-6 pb-4 text-center border-b border-border bg-gradient-to-b from-primary/5 to-background">
+        <LumaAvatar size={56} />
+        <h2 className="mt-3 font-serif text-lg font-extrabold text-foreground">
+          📁 Document Vault
+        </h2>
+        <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
+          <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
+          <span className="text-[11px] text-muted-foreground">— {formConfig.formName}</span>
+        </div>
+
+        {/* KEY MESSAGE */}
+        <div className="mt-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3">
+          <p className="text-sm font-extrabold text-primary">📸 Upload more → Answer less</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
+            Every document you scan automatically fills in the matching questions —
+            so you don't have to type them. The more you upload <span className="font-bold text-foreground">now</span>,
+            the fewer questions Luma will ask you.
+          </p>
+        </div>
+
+        {/* Live counter */}
+        {autoFilledCount > 0 && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-500 px-4 py-1.5">
+            <span className="text-white text-xs font-extrabold">
+              🎉 {autoFilledCount} fields auto-filled from {doneCount} document{doneCount !== 1 ? "s" : ""}!
+            </span>
+          </div>
+        )}
+
+        {/* Legend */}
+        <div className="mt-2 flex justify-center gap-4 text-[10px]">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Required</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Recommended</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block"/>Optional</span>
+        </div>
       </div>
 
-      {/* Discrepancies */}
-      {discrepancies.length > 0 && (
-        <div className="mt-5 w-full rounded-xl border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-900/10 p-4">
-          <div className="text-sm font-bold text-foreground mb-2">🔍 Luma noticed some differences:</div>
-          <ul className="space-y-1">
+      {/* ── DOCUMENT LIST (scrollable) ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4" style={{ maxHeight: "55vh" }}>
+
+        {/* Required */}
+        {required.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+              <span className="text-[11px] font-extrabold text-red-600 uppercase tracking-wide">
+                Required — {required.filter(s => statuses[s.id] === "done").length}/{required.length} done
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {required.map(renderSlot)}
+            </div>
+          </div>
+        )}
+
+        {/* Recommended */}
+        {recommended.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <span className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wide">
+                Recommended — saves the most questions
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {recommended.map(renderSlot)}
+            </div>
+          </div>
+        )}
+
+        {/* Optional */}
+        {optional.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
+              <span className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-wide">
+                Optional — upload if you have them
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {optional.map(renderSlot)}
+            </div>
+          </div>
+        )}
+
+        {/* Discrepancies */}
+        {discrepancies.length > 0 && (
+          <div className="rounded-xl border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-900/10 p-3">
+            <div className="text-xs font-bold text-foreground mb-1">🔍 Luma noticed some differences:</div>
             {discrepancies.map((d, i) => (
-              <li key={i} className="text-xs text-foreground/80">{d}</li>
+              <p key={i} className="text-[11px] text-foreground/80">{d}</p>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* Summary of what was found */}
-      {summaries.length > 0 && (
-        <div className="mt-5 w-full rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-4">
-          <div className="text-sm font-bold text-foreground mb-2">📋 What Luma found:</div>
-          <ul className="space-y-1">
+        {/* What Luma found */}
+        {summaries.length > 0 && (
+          <div className="rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-3">
+            <div className="text-xs font-bold text-foreground mb-1">📋 Auto-filled from your documents:</div>
             {summaries.map((s, i) => (
-              <li key={i} className="text-xs text-foreground/80">✅ {s}</li>
+              <p key={i} className="text-[11px] text-foreground/80">✅ {s}</p>
             ))}
-          </ul>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
 
-      <div className="mt-6 flex gap-3">
+      {/* ── STICKY FOOTER ── */}
+      <div className="border-t border-border px-4 py-3 bg-background">
         <button
           onClick={handleDone}
-          className="rounded-xl bg-primary px-8 py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 shadow-lg"
+          className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 shadow-lg"
         >
-          {uploadedOrSkippedCount > 0 ? "Continue to form →" : "Start without documents →"}
+          {doneCount > 0
+            ? `Continue with ${doneCount} document${doneCount !== 1 ? "s" : ""} → (${autoFilledCount} fields pre-filled)`
+            : "Start without documents →"}
         </button>
+        <button
+          onClick={onSkipAll}
+          className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary transition-colors"
+        >
+          Skip all — I'll type everything manually
+        </button>
+        <p className="mt-2 text-center text-[10px] text-muted-foreground">
+          🔒 Scanned securely, never stored. Deleted immediately after reading.
+        </p>
       </div>
 
-      <button
-        onClick={onSkipAll}
-        className="mt-4 text-xs text-muted-foreground underline decoration-dotted underline-offset-4 hover:text-primary transition-colors"
-      >
-        Skip all — I'll type everything manually
-      </button>
-
-      <p className="mt-6 text-center text-[10px] text-muted-foreground max-w-xs">
-        🔒 Documents are processed securely and never stored. They are used only to read your details, then immediately deleted.
-      </p>
     </div>
   );
 };

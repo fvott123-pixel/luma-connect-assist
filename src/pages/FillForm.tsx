@@ -194,11 +194,11 @@ const FillForm = () => {
       <div className="min-h-screen bg-background" dir={dir}>
         <TopBar />
         <StickyNav />
-        <main className="mx-auto max-w-2xl px-4 py-6">
+        <main className="mx-auto max-w-xl px-4 py-6">
           <button onClick={() => navigate("/")} className="mb-4 text-sm font-semibold text-primary hover:underline">
             ← Back
           </button>
-          <div className="rounded-2xl border border-border bg-card shadow-sm">
+          <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
             <ErrorBoundary label="Document Vault">
               <DocumentVault onComplete={handleVaultComplete} onSkipAll={handleSkipVault} formSlug={slug || "disability-support-pension"} />
             </ErrorBoundary>
