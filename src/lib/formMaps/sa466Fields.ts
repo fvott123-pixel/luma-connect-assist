@@ -1205,10 +1205,18 @@ export const SA466_FIELDS: SA466Field[] = [
   // DECLARATION
   // ═══════════════════════════════════════════════════════════════
 
+  { id: "declarationDate", questionNumber: 143, pageNumber: 35, x: 331, y: 421,
+    fieldType: "text", label: "Declaration Date", section: "declaration",
+    pdfField: "SignDate.2.D",
+    lumaQuestion: "What is today's date? 📅 (This goes on the declaration — DD/MM/YYYY)",
+    lumaExplanation: "Enter today's date in DD/MM/YYYY format — for example 22/03/2026. This is the date you're signing the form.",
+    required: true,
+    placeholder: "e.g. 22/03/2026" },
+
   { id: "declarationComplete", questionNumber: 144, pageNumber: 36, x: 0, y: 0,
     fieldType: "select", label: "Declaration", section: "declaration",
     options: ["Yes"],
     lumaQuestion: "",
     required: false,
-    signatureNotice: "You've answered all the questions! ✅ Before we finish, you need to sign the declaration on page 36 to confirm the information is correct. Please add your signature in the panel on the right, then click Download." },
+    signatureNotice: "You've answered all the questions! ✅ Before we finish, you need to sign the declaration on page 36 to confirm the information is correct. Please add your signature in the panel below, then click Download." },
 ];

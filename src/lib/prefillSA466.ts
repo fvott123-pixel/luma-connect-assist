@@ -532,18 +532,39 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.difficultyEvidence) btn(form, "Q142", data.difficultyEvidence);
 
   // ══ Signature ══
+  // Page 35 (index 34): Sign rect in PyMuPDF = [357, 358, 566, 397], page height = 841.89
+  // pdf-lib uses bottom-left origin: y_pdf = pageH - y_mupdf_bottom = 841.89 - 397 = 444.89
+  // Width = 566 - 357 = 209, Height = 397 - 358 = 39
   if (signatureDataUrl) {
     try {
       const b64 = signatureDataUrl.split(",")[1];
       const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const img = await pdfDoc.embedPng(bytes);
+      // Detect image type (PNG or JPEG)
+      const isJpeg = bytes[0] === 0xFF && bytes[1] === 0xD8;
+      const img = isJpeg ? await pdfDoc.embedJpg(bytes) : await pdfDoc.embedPng(bytes);
       const pages = pdfDoc.getPages();
-      const last = pages[pages.length - 1];
-      if (last) {
-        const { width } = last.getSize();
-        last.drawImage(img, { x: width - 220, y: 80, width: 160, height: 50 });
-      }
-    } catch {}
+      // Page 35 (0-indexed: 34) = main declaration page
+      const declarationPage = pages[34] ?? pages[pages.length - 1];
+      const { height: pgH } = declarationPage.getSize();
+      // Sign field: PyMuPDF [357, 358, 566, 397] → pdf-lib origin from bottom-left
+      const sigX = 357;
+      const sigY = pgH - 397;  // bottom of rect in pdf-lib coords
+      const sigW = 209;
+      const sigH = 39;
+      declarationPage.drawImage(img, { x: sigX, y: sigY, width: sigW, height: sigH });
+    } catch (e) {
+      console.warn("Signature embed failed:", e);
+    }
+  }
+
+  // ══ Signature Date (today's date if declarationDate not provided) ══
+  const sigDate = data.declarationDate || new Date().toLocaleDateString("en-AU");
+  const dateParts = sigDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (dateParts) {
+    const [, d, m, y] = dateParts;
+    txt(form, "SignDate.2.D", d.padStart(2, "0"));
+    txt(form, "SignDate.2.M", m.padStart(2, "0"));
+    txt(form, "SignDate.2.Y", y.length === 2 ? "20" + y : y);
   }
 
   form.flatten();

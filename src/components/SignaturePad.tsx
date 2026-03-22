@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback } from "react";
 
 type Mode = "draw" | "type" | "upload";
 
+const CANVAS_HEIGHT = 140; // px — large enough to draw comfortably
+
 const FONTS = [
   { name: "Signature",  css: "'Dancing Script', cursive" },
   { name: "Elegant",    css: "'Great Vibes', cursive" },
@@ -24,19 +26,24 @@ export default function SignaturePad({ onSignatureChange, initialSignature }: Pr
   const [sigUrl, setSigUrl] = useState<string | null>(initialSignature || null);
   const [expanded, setExpanded] = useState(false);
 
-  // Init canvas
+  // Init canvas — use rAF so the DOM has laid out before we measure
   useEffect(() => {
     if (mode !== "draw" || !expanded) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d")!;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = 50 * 2;
-    ctx.scale(2, 2);
-    ctx.strokeStyle = "#1a1a2e";
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = "round";
+    const init = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width  = rect.width  * dpr;
+      canvas.height = CANVAS_HEIGHT * dpr;
+      const ctx = canvas.getContext("2d")!;
+      ctx.scale(dpr, dpr);
+      ctx.strokeStyle = "#1a1a2e";
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+    };
+    requestAnimationFrame(init);
   }, [mode, expanded]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
@@ -121,20 +128,20 @@ export default function SignaturePad({ onSignatureChange, initialSignature }: Pr
   };
 
   return (
-    <div className="rounded-lg border border-border bg-background overflow-hidden">
+    <div className="rounded-lg border-2 border-primary/30 bg-background overflow-hidden">
       {/* Compact header row */}
       <div
-        className="flex items-center justify-between px-3 py-1.5 cursor-pointer hover:bg-muted/30 transition-colors"
+        className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(v => !v)}
       >
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-foreground">✍️ Signature</span>
+          <span className="text-xs font-bold text-primary">✍️ Signature</span>
           {sigUrl && !expanded && (
-            <img src={sigUrl} alt="sig" className="h-5 object-contain rounded" />
+            <img src={sigUrl} alt="sig" className="h-6 object-contain rounded border border-border bg-white px-1" />
           )}
-          {!sigUrl && <span className="text-[10px] text-muted-foreground italic">optional — tap to add</span>}
+          {!sigUrl && <span className="text-[11px] text-muted-foreground italic">Tap to add your signature (Draw / Type / Upload)</span>}
         </div>
-        <span className="text-[10px] text-muted-foreground">{expanded ? "▲" : "▼"}</span>
+        <span className="text-xs font-bold text-primary">{expanded ? "▲ Close" : "▼ Open"}</span>
       </div>
 
       {/* Expandable body */}
@@ -159,13 +166,24 @@ export default function SignaturePad({ onSignatureChange, initialSignature }: Pr
 
           {/* Draw */}
           {mode === "draw" && (
-            <div className="relative rounded border border-border bg-white overflow-hidden" style={{ touchAction: "none" }}>
-              <canvas ref={canvasRef} className="w-full cursor-crosshair" style={{ height: 50 }}
-                onMouseDown={startDraw} onMouseMove={draw} onMouseUp={endDraw} onMouseLeave={endDraw}
-                onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={endDraw} />
+            <div className="relative rounded-lg border-2 border-dashed border-primary/40 bg-white overflow-hidden"
+              style={{ touchAction: "none", height: CANVAS_HEIGHT }}>
+              <canvas
+                ref={canvasRef}
+                className="w-full cursor-crosshair absolute inset-0"
+                style={{ height: CANVAS_HEIGHT, width: "100%" }}
+                onMouseDown={startDraw}
+                onMouseMove={draw}
+                onMouseUp={endDraw}
+                onMouseLeave={endDraw}
+                onTouchStart={startDraw}
+                onTouchMove={draw}
+                onTouchEnd={endDraw}
+              />
               {!hasDrawn && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <span className="text-muted-foreground/40 text-xs italic">Sign here</span>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1">
+                  <span className="text-3xl opacity-20">✍️</span>
+                  <span className="text-muted-foreground/50 text-xs italic">Draw your signature here</span>
                 </div>
               )}
             </div>

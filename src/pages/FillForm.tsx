@@ -88,6 +88,37 @@ const FillForm = () => {
     }
   };
 
+  const handleEmailClick = async () => {
+    setIsGenerating(true);
+    try {
+      // Re-generate PDF and download it so user has the file ready to attach
+      const pdfBytes = await prefillSA466(answers, signatureDataUrl);
+      const today = new Date().toLocaleDateString("en-AU").replace(/\//g, "-");
+      const filename = `SA466-DSP-${today}.pdf`;
+      downloadPdf(pdfBytes, filename);
+
+      // Build mailto link — pre-fill recipient with their email from answers
+      const recipientEmail = answers.email || "";
+      const subject = encodeURIComponent("SA466 Disability Support Pension Application");
+      const body = encodeURIComponent(
+        `Hi,\n\nYour pre-filled SA466 Disability Support Pension form has just been downloaded to your device as "${filename}".\n\nPlease:\n1. Attach the downloaded PDF to this email\n2. Review all answers carefully before signing\n3. Lodge with Services Australia\n\nForm prepared using Luma Connect — True Care SA.`
+      );
+      const mailtoLink = `mailto:${recipientEmail}?subject=${subject}&body=${body}`;
+
+      // Small delay so download triggers first
+      setTimeout(() => {
+        window.open(mailtoLink, "_blank");
+      }, 800);
+
+      toast.success("PDF downloaded — your email app will open shortly. Attach the PDF and send!");
+    } catch (err: any) {
+      console.error("Email PDF error:", err?.message, err?.stack);
+      toast.error("Could not generate PDF: " + (err?.message || "Unknown error"));
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // ── Resume phase ──
   if (phase === "resume") {
     return (
@@ -243,8 +274,13 @@ const FillForm = () => {
             <span className="text-4xl">🎉</span>
             <p className="mt-3 text-sm font-medium text-foreground">{t("form.downloadSuccess")}</p>
             <div className="mt-4 flex flex-wrap justify-center gap-3">
-              <button onClick={() => toast.info("Email feature coming soon!")} className="rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted">
-                {t("form.emailToSelf")}
+              <button
+                onClick={handleEmailClick}
+                disabled={isGenerating}
+                className="flex items-center gap-2 rounded-xl border border-primary/30 bg-background px-5 py-2.5 text-sm font-bold text-foreground hover:bg-muted disabled:opacity-50"
+              >
+                {isGenerating && <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
+                📧 {t("form.emailToSelf")}
               </button>
               <button
                 onClick={() => { clearSession(slug); setDownloadComplete(false); setIsComplete(false); setAnswers({}); setPrefilled({}); setPhase("vault"); }}
