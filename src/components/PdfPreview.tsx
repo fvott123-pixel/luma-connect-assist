@@ -24,27 +24,33 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
 
   const pdfDocRef = useRef<pdfjsLib.PDFDocumentProxy | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // targetPageRef tracks the page to show after the next PDF regeneration
   const targetPageRef = useRef<number>(0);
+  // pendingRenderRef: if a render was dropped while busy, re-run with latest args
   const renderingRef = useRef(false);
+  const pendingRenderRef = useRef<{ doc: pdfjsLib.PDFDocumentProxy; page: number } | null>(null);
   const lastAnswersRef = useRef<string>("");
 
-  // When Luma answers a field, record the page to jump to
+  // When Luma answers a field, just record which page to jump to.
+  // DO NOT call setCurrentPage here — that would trigger a stale-PDF re-render.
+  // The page jump happens inside generateAndRender after the fresh PDF is ready.
   useEffect(() => {
     if (!scrollToField) return;
     const field = SA466_FIELDS.find(f => f.id === scrollToField);
     if (field?.pageNumber !== undefined) {
       targetPageRef.current = field.pageNumber;
-      if (pdfDocRef.current) {
-        const target = Math.min(field.pageNumber, (pdfDocRef.current.numPages || 37) - 1);
-        setCurrentPage(target);
-      }
     }
   }, [scrollToField]); // eslint-disable-line
 
-  // Render a single page
+  // Render a single page — queue if already rendering so we never miss the latest
   const renderPage = useCallback(async (doc: pdfjsLib.PDFDocumentProxy, pageNum: number) => {
-    if (renderingRef.current) return;
+    if (renderingRef.current) {
+      // Already rendering — queue this call so it runs when the current one finishes
+      pendingRenderRef.current = { doc, page: pageNum };
+      return;
+    }
     renderingRef.current = true;
+    pendingRenderRef.current = null;
     try {
       const page = await doc.getPage(pageNum + 1);
       const scale = 1.5;
@@ -56,16 +62,22 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
       setPageImage(canvas.toDataURL("image/jpeg", 0.85));
     } finally {
       renderingRef.current = false;
+      // If a newer render was queued while we were busy, run it now
+      if (pendingRenderRef.current) {
+        const { doc: d, page: p } = pendingRenderRef.current;
+        pendingRenderRef.current = null;
+        renderPage(d, p);
+      }
     }
   }, []);
 
-  // Re-render current page when user manually flips pages
+  // Re-render current page when user manually flips pages with the arrow buttons
   useEffect(() => {
     if (!pdfDocRef.current) return;
     renderPage(pdfDocRef.current, currentPage);
   }, [currentPage, renderPage]);
 
-  // Generate filled PDF and render — debounced, skip if answers haven't changed
+  // Generate a fresh filled PDF and render the target page
   const generateAndRender = useCallback(async (
     data: Record<string, string>,
     sigDataUrl: string | null | undefined,
@@ -73,7 +85,8 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
   ) => {
     const answersKey = JSON.stringify(data) + (sigDataUrl || "");
     if (answersKey === lastAnswersRef.current && pdfDocRef.current) {
-      // Answers unchanged — just re-render current page
+      // Answers unchanged — just re-render the target page
+      setCurrentPage(pageNum);
       renderPage(pdfDocRef.current, pageNum);
       return;
     }
@@ -85,8 +98,10 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
       const pdfBytes = await prefillSA466(data, sigDataUrl);
       const doc = await pdfjsLib.getDocument({ data: pdfBytes }).promise;
       pdfDocRef.current = doc;
+      const safePage = Math.min(pageNum, doc.numPages - 1);
       setTotalPages(doc.numPages);
-      await renderPage(doc, Math.min(pageNum, doc.numPages - 1));
+      setCurrentPage(safePage);            // ← jump to the right page NOW (fresh PDF is ready)
+      await renderPage(doc, safePage);
     } catch (err: any) {
       console.error("PDF preview error:", err);
       setError(err?.message || "Failed to generate preview");
@@ -95,14 +110,14 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
     }
   }, [renderPage]);
 
-  // Trigger on answers change — 3 second debounce so it doesn't fire mid-sentence
+  // Trigger on answers/signature change — 1.5 s debounce keeps it snappy
   useEffect(() => {
     setPending(true);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPending(false);
       generateAndRender(answers, signatureDataUrl, targetPageRef.current);
-    }, 5000);
+    }, 1500);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [answers, signatureDataUrl, generateAndRender]);
 
@@ -125,16 +140,28 @@ const PdfPreview = ({ answers, scrollToField, onSignatureChange, signatureDataUr
               className="px-1.5 py-0.5 text-xs rounded border border-border bg-background disabled:opacity-30"
             >›</button>
           </div>
-          {pending && !loading && <span className="text-[10px] text-muted-foreground">updating…</span>}
+          {pending && !loading && <span className="text-[10px] text-muted-foreground animate-pulse">✏️ filling…</span>}
           {loading && <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />}
         </div>
       </div>
 
       {/* PDF page */}
-      <div className="flex-1 min-h-0 overflow-auto bg-muted/20">
+      <div className="flex-1 min-h-0 overflow-auto bg-muted/20 relative">
+        {/* Subtle overlay while a fresh PDF is generating */}
+        {(pending || loading) && pageImage && (
+          <div className="absolute inset-0 bg-background/30 z-10 pointer-events-none transition-opacity" />
+        )}
         {error ? (
           <div className="flex items-center justify-center h-full p-4 text-center">
-            <p className="text-xs text-muted-foreground">PDF preview updating…<br/>Your answers are saved.</p>
+            <div>
+              <p className="text-xs text-muted-foreground">PDF preview updating…<br/>Your answers are saved.</p>
+              <button
+                onClick={() => { setError(null); generateAndRender(answers, signatureDataUrl, targetPageRef.current); }}
+                className="mt-3 rounded-lg bg-primary px-3 py-1.5 text-[10px] font-bold text-primary-foreground"
+              >
+                Retry
+              </button>
+            </div>
           </div>
         ) : pageImage ? (
           <div className="flex justify-center p-2">
