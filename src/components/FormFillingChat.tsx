@@ -108,9 +108,11 @@ function shouldSkipField(field: SA466Field, answers: Record<string, string>): bo
     if (get("wasEmployee") === "yes" || get("wasSelfEmployed") === "yes" || get("wasApprentice") === "yes" || get("doingStudy") === "yes") return true;
   }
   if (["institutionName","releaseDate"].includes(id) && get("chargedWithOffence") !== "yes") return true;
-  if (["preferredLanguage","preferredWrittenLanguage"].includes(id) && get("interpreterNeeded") !== "yes") return true;
+  // Q38 Yes → Go to Q41 (skip Q39/Q40). Q38 No → show Q39/Q40.
+  if (["preferredLanguage","preferredWrittenLanguage"].includes(id) && get("interpreterNeeded") === "yes") return true;
 
   // ─── Residence ───
+  if (id === "currentCountryDetails" && get("currentCountry") !== "other") return true;
   if (id === "countryOfBirth" && get("australianCitizenBornHere") === "yes") return true;
   if (["countryOfCitizenship","permanentResident","visaType","visaChanged","livedBefor1965","assuranceOfSupport"].includes(id)) {
     if (get("australianCitizen") === "yes") return true;

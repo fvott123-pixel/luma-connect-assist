@@ -225,6 +225,29 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.preferredLanguage || ""))      txt(form, "Q39", data.preferredLanguage      || "");
   if (!isEmpty(data.preferredWrittenLanguage || "")) txt(form, "Q40", data.preferredWrittenLanguage || "");
 
+  // ══ Q41 — Aboriginal/Torres Strait Islander descent ══
+  if (data.atsiDescent) {
+    const v = data.atsiDescent.toLowerCase();
+    if (v.includes("both")) {
+      btn(form, "Q41.0", "Yes");  // Aboriginal = Yes
+      btn(form, "Q41.1", "Yes");  // TSI = Yes
+    } else if (v.includes("aboriginal")) {
+      btn(form, "Q41.0", "Yes");
+    } else if (v.includes("torres") || v.includes("strait")) {
+      btn(form, "Q41.0", "No");
+      btn(form, "Q41.1", "Yes");
+    } else {
+      btn(form, "Q41.0", "No");   // No to both
+    }
+  }
+
+  // ══ Q42 — South Sea Islander ══
+  if (data.southSeaIslander) btn(form, "Q42", data.southSeaIslander);
+
+  // ══ Q43 — Current country of residence ══
+  if (data.currentCountry) btn(form, "Q43", data.currentCountry);
+  if (!isEmpty(data.currentCountryDetails || "")) txt(form, "Q43Details", data.currentCountryDetails || "");
+
   // ══ Q22-24 — Offence/detention ══
   if (data.chargedWithOffence) btn(form, "Q22", data.chargedWithOffence);
   if (!isEmpty(data.institutionName || "")) txt(form, "Q23", data.institutionName || "");
@@ -241,6 +264,9 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   // ══ Q31-32 — Income streams ══
   if (data.incomeStreamToldBefore) btn(form, "Q31", data.incomeStreamToldBefore);
   if (data.gettingIncomeStream)    btn(form, "Q32", data.gettingIncomeStream);
+
+  // ══ Q33 — Pension Supplement frequency ══
+  if (data.pensionSupplement) btn(form, "Q33", data.pensionSupplement);
 
   // ══ Q34 — Bank details ══
   txt(form, "BankName", data.bankName      || "");
