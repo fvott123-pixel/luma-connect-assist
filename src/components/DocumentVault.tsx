@@ -644,135 +644,210 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
     );
   };
 
-  return (
-    <div className="flex flex-col w-full">
+  // Helper to render a priority group
+  const renderGroup = (slots: DocSlot[], label: string, dotColor: string, textColor: string) => {
+    if (slots.length === 0) return null;
+    const doneInGroup = slots.filter(s => statuses[s.id] === "done").length;
+    return (
+      <div>
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
+          <span className={`text-[11px] font-extrabold uppercase tracking-wide ${textColor}`}>
+            {label}
+            {label.startsWith("Required") && ` — ${doneInGroup}/${slots.length} done`}
+          </span>
+        </div>
+        <div className="space-y-1.5">
+          {slots.map(renderSlot)}
+        </div>
+      </div>
+    );
+  };
 
-      {/* ── HERO BANNER ── */}
-      <div className="px-6 pt-6 pb-4 text-center border-b border-border bg-gradient-to-b from-primary/5 to-background">
-        <LumaAvatar size={56} />
-        <h2 className="mt-3 font-serif text-lg font-extrabold text-foreground">
-          📁 Document Vault
-        </h2>
-        <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
-          <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
-          <span className="text-[11px] text-muted-foreground">— {formConfig.formName}</span>
+  return (
+    // ── Responsive wrapper: column on mobile, side-by-side on desktop ──
+    <div className="flex flex-col md:flex-row w-full min-h-0" style={{ maxHeight: "90vh" }}>
+
+      {/* ════════════════════════════════════════════════
+          LEFT PANEL — document list (scrollable)
+          On mobile: full width. On desktop: 58% width.
+          ════════════════════════════════════════════════ */}
+      <div className="flex flex-col md:w-[58%] min-h-0 border-b md:border-b-0 md:border-r border-border">
+
+        {/* Mobile-only mini header */}
+        <div className="md:hidden px-4 pt-5 pb-3 text-center border-b border-border bg-gradient-to-b from-primary/5 to-background">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <LumaAvatar size={40} />
+            <div>
+              <h2 className="font-serif text-base font-extrabold text-foreground">📁 Document Vault</h2>
+              <div className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5">
+                <span className="text-[10px] font-bold text-primary">{formConfig.formCode}</span>
+                <span className="text-[10px] text-muted-foreground">— {formConfig.formName}</span>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-2">
+            <p className="text-[12px] font-extrabold text-primary">📸 Upload more → Answer less</p>
+            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+              Every document you scan fills in questions automatically.
+            </p>
+          </div>
+          {autoFilledCount > 0 && (
+            <div className="mt-2 inline-flex items-center rounded-full bg-green-500 px-3 py-1">
+              <span className="text-white text-[11px] font-extrabold">
+                🎉 {autoFilledCount} fields auto-filled!
+              </span>
+            </div>
+          )}
+          <div className="mt-2 flex justify-center gap-4 text-[10px]">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"/>Required</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"/>Recommended</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300"/>Optional</span>
+          </div>
         </div>
 
-        {/* KEY MESSAGE */}
-        <div className="mt-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3">
-          <p className="text-sm font-extrabold text-primary">📸 Upload more → Answer less</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground leading-snug">
-            Every document you scan automatically fills in the matching questions —
-            so you don't have to type them. The more you upload <span className="font-bold text-foreground">now</span>,
-            the fewer questions Luma will ask you.
+        {/* Desktop column label */}
+        <div className="hidden md:flex items-center gap-2 px-5 pt-5 pb-2 border-b border-border/60">
+          <span className="text-sm font-extrabold text-foreground">📄 Your Documents</span>
+          <span className="ml-auto text-[10px] text-muted-foreground flex gap-3">
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"/>Required</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"/>Recommended</span>
+            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300"/>Optional</span>
+          </span>
+        </div>
+
+        {/* Scrollable list */}
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+          {renderGroup(required,    "Required",    "bg-red-400",   "text-red-600")}
+          {renderGroup(recommended, "Recommended — saves the most questions", "bg-amber-400", "text-amber-600")}
+          {renderGroup(optional,    "Optional — upload if you have them",     "bg-gray-300",  "text-muted-foreground")}
+        </div>
+
+        {/* Mobile-only footer */}
+        <div className="md:hidden border-t border-border px-4 py-3 bg-background">
+          <button onClick={handleDone}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 shadow-lg">
+            {doneCount > 0
+              ? `Continue with ${doneCount} doc${doneCount !== 1 ? "s" : ""} → (${autoFilledCount} fields pre-filled)`
+              : "Start without documents →"}
+          </button>
+          <button onClick={onSkipAll}
+            className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary">
+            Skip all — I'll type everything manually
+          </button>
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+            🔒 Scanned securely, never stored.
           </p>
         </div>
+      </div>
 
-        {/* Live counter */}
-        {autoFilledCount > 0 && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-green-500 px-4 py-1.5">
-            <span className="text-white text-xs font-extrabold">
-              🎉 {autoFilledCount} fields auto-filled from {doneCount} document{doneCount !== 1 ? "s" : ""}!
-            </span>
+      {/* ════════════════════════════════════════════════
+          RIGHT PANEL — sticky sidebar (desktop only)
+          ════════════════════════════════════════════════ */}
+      <div className="hidden md:flex flex-col md:w-[42%] bg-gradient-to-b from-primary/5 to-background">
+
+        {/* Header with Luma avatar */}
+        <div className="px-6 pt-6 pb-4 text-center border-b border-border/60">
+          <LumaAvatar size={60} />
+          <h2 className="mt-3 font-serif text-lg font-extrabold text-foreground">📁 Document Vault</h2>
+          <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
+            <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
+            <span className="text-[11px] text-muted-foreground">— {formConfig.formName}</span>
           </div>
-        )}
 
-        {/* Legend */}
-        <div className="mt-2 flex justify-center gap-4 text-[10px]">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400 inline-block"/>Required</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400 inline-block"/>Recommended</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-gray-300 inline-block"/>Optional</span>
+          {/* KEY MESSAGE */}
+          <div className="mt-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-left">
+            <p className="text-sm font-extrabold text-primary">📸 Upload more → Answer less</p>
+            <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+              Every document you scan auto-fills the matching form questions —
+              so you don't have to type them manually.
+              The more you upload <span className="font-bold text-foreground">now</span>,
+              the fewer questions Luma will ask.
+            </p>
+          </div>
         </div>
-      </div>
 
-      {/* ── DOCUMENT LIST (scrollable) ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4" style={{ maxHeight: "55vh" }}>
+        {/* Live progress */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
 
-        {/* Required */}
-        {required.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-              <span className="text-[11px] font-extrabold text-red-600 uppercase tracking-wide">
-                Required — {required.filter(s => statuses[s.id] === "done").length}/{required.length} done
-              </span>
+          {/* Auto-fill counter */}
+          <div className={`rounded-xl border-2 p-4 text-center transition-all ${
+            autoFilledCount > 0
+              ? "border-green-500/40 bg-green-50"
+              : "border-border bg-card"
+          }`}>
+            <div className="text-3xl font-extrabold text-primary">{autoFilledCount}</div>
+            <div className="text-xs font-bold text-muted-foreground">fields auto-filled</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">
+              from {doneCount} document{doneCount !== 1 ? "s" : ""} scanned
             </div>
-            <div className="space-y-1.5">
-              {required.map(renderSlot)}
-            </div>
+            {autoFilledCount === 0 && (
+              <p className="mt-2 text-[10px] text-muted-foreground italic">
+                Upload your first document to see this number climb →
+              </p>
+            )}
           </div>
-        )}
 
-        {/* Recommended */}
-        {recommended.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-              <span className="text-[11px] font-extrabold text-amber-600 uppercase tracking-wide">
-                Recommended — saves the most questions
-              </span>
+          {/* Discrepancies */}
+          {discrepancies.length > 0 && (
+            <div className="rounded-xl border border-yellow-500/30 bg-yellow-50 p-3">
+              <div className="text-xs font-bold text-foreground mb-1">🔍 Luma noticed some differences:</div>
+              {discrepancies.map((d, i) => (
+                <p key={i} className="text-[11px] text-foreground/80">{d}</p>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              {recommended.map(renderSlot)}
+          )}
+
+          {/* What Luma found */}
+          {summaries.length > 0 ? (
+            <div className="rounded-xl border border-green-500/30 bg-green-50 p-3">
+              <div className="text-xs font-bold text-foreground mb-2">✅ What Luma found so far:</div>
+              <div className="space-y-1">
+                {summaries.map((s, i) => (
+                  <p key={i} className="text-[11px] text-foreground/80 leading-snug">{s}</p>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Optional */}
-        {optional.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-gray-300 shrink-0" />
-              <span className="text-[11px] font-extrabold text-muted-foreground uppercase tracking-wide">
-                Optional — upload if you have them
-              </span>
+          ) : (
+            <div className="rounded-xl border border-dashed border-border bg-card p-4 text-center">
+              <p className="text-[11px] text-muted-foreground italic">
+                Uploaded documents will be summarised here as Luma reads them.
+              </p>
             </div>
-            <div className="space-y-1.5">
-              {optional.map(renderSlot)}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* Discrepancies */}
-        {discrepancies.length > 0 && (
-          <div className="rounded-xl border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-900/10 p-3">
-            <div className="text-xs font-bold text-foreground mb-1">🔍 Luma noticed some differences:</div>
-            {discrepancies.map((d, i) => (
-              <p key={i} className="text-[11px] text-foreground/80">{d}</p>
-            ))}
+          {/* Tips */}
+          <div className="rounded-xl border border-border bg-card p-3">
+            <div className="text-[11px] font-bold text-foreground mb-1.5">💡 Tips</div>
+            <ul className="space-y-1 text-[10px] text-muted-foreground">
+              <li>📱 <span className="font-semibold">Phone camera</span> — best for most documents</li>
+              <li>📄 <span className="font-semibold">PDF files</span> — accepted for bank/medical docs</li>
+              <li>☀️ <span className="font-semibold">Good lighting</span> — helps Luma read text clearly</li>
+              <li>🔒 <span className="font-semibold">100% private</span> — deleted immediately after scan</li>
+            </ul>
           </div>
-        )}
+        </div>
 
-        {/* What Luma found */}
-        {summaries.length > 0 && (
-          <div className="rounded-xl border border-green-500/30 bg-green-50 dark:bg-green-900/10 p-3">
-            <div className="text-xs font-bold text-foreground mb-1">📋 Auto-filled from your documents:</div>
-            {summaries.map((s, i) => (
-              <p key={i} className="text-[11px] text-foreground/80">✅ {s}</p>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── STICKY FOOTER ── */}
-      <div className="border-t border-border px-4 py-3 bg-background">
-        <button
-          onClick={handleDone}
-          className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground transition-all hover:opacity-90 shadow-lg"
-        >
-          {doneCount > 0
-            ? `Continue with ${doneCount} document${doneCount !== 1 ? "s" : ""} → (${autoFilledCount} fields pre-filled)`
-            : "Start without documents →"}
-        </button>
-        <button
-          onClick={onSkipAll}
-          className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary transition-colors"
-        >
-          Skip all — I'll type everything manually
-        </button>
-        <p className="mt-2 text-center text-[10px] text-muted-foreground">
-          🔒 Scanned securely, never stored. Deleted immediately after reading.
-        </p>
+        {/* Sticky CTA */}
+        <div className="border-t border-border px-5 py-4 bg-background">
+          <button
+            onClick={handleDone}
+            className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 shadow-lg transition-all"
+          >
+            {doneCount > 0
+              ? `Continue → ${autoFilledCount} fields pre-filled`
+              : "Start without documents →"}
+          </button>
+          <button
+            onClick={onSkipAll}
+            className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary transition-colors"
+          >
+            Skip all — I'll type everything manually
+          </button>
+          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
+            🔒 Scanned securely, never stored. Deleted immediately after reading.
+          </p>
+        </div>
       </div>
 
     </div>

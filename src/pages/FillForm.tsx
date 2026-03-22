@@ -194,7 +194,7 @@ const FillForm = () => {
       <div className="min-h-screen bg-background" dir={dir}>
         <TopBar />
         <StickyNav />
-        <main className="mx-auto max-w-xl px-4 py-6">
+        <main className="mx-auto max-w-4xl px-4 py-6">
           <button onClick={() => navigate("/")} className="mb-4 text-sm font-semibold text-primary hover:underline">
             ← Back
           </button>
