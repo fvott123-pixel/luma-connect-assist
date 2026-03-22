@@ -2,7 +2,7 @@
  * SA466 PDF Pre-fill Engine
  * Fills named AcroForm fields — same approach as DocuSign/Adobe Acrobat.
  */
-import { PDFDocument, StandardFonts, rgb } from "@cantoo/pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFName, PDFDict } from "@cantoo/pdf-lib";
 
 export type SA466FormData = Record<string, string>;
 
@@ -75,10 +75,44 @@ function txt(form: any, field: string, value: string, fontSize = 10) {
   } catch {}
 }
 
-/** Set radio group or checkbox */
+/** Set radio group or checkbox.
+ *  SA466 uses "checkbox-array" pattern — multiple widgets share one field name,
+ *  each widget has a different ON export value in its AP/N dict (e.g. "Yes"/"No").
+ *  getRadioGroup() fails for all of them; check() always ticks widget[0] = "No".
+ *  Fix: iterate widgets, read ON state from AP/N dict, set /AS directly.
+ */
 function btn(form: any, field: string, value: string) {
   if (!value) return;
+  // 1. Try proper radio group first (works for Title1 etc.)
   try { form.getRadioGroup(field).select(value); return; } catch {}
+  // 2. Checkbox widget targeting — find widget whose ON state matches value
+  try {
+    const cb = form.getCheckBox(field);
+    const widgets = (cb as any).acroField.getWidgets();
+    let matched = false;
+    for (const widget of widgets) {
+      const ap = widget.dict?.get?.(PDFName.of("AP"));
+      const n = ap instanceof PDFDict ? ap.get(PDFName.of("N")) : null;
+      if (!n || !(n instanceof PDFDict)) continue;
+      let onState: string | null = null;
+      for (const [k] of (n as any).entries()) {
+        const name = (k.encodedName || k.asString?.() || "").replace(/^\//, "");
+        if (name !== "Off") { onState = name; break; }
+      }
+      if (!onState) continue;
+      if (onState === value) {
+        widget.dict.set(PDFName.of("AS"), PDFName.of(onState));
+        matched = true;
+      } else {
+        widget.dict.set(PDFName.of("AS"), PDFName.of("Off"));
+      }
+    }
+    if (matched) {
+      (cb as any).acroField.dict.set(PDFName.of("V"), PDFName.of(value));
+      return;
+    }
+  } catch {}
+  // 3. Last resort fallback
   try { if (value === "Yes") form.getCheckBox(field).check(); } catch {}
 }
 
