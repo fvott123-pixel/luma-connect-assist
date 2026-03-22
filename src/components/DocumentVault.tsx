@@ -272,29 +272,45 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       break;
     }
     case "partnerLicence": {
-      if (data.partnerFirstName) mapped.partnerFirstName = data.partnerFirstName;
-      if (data.partnerFamilyName) mapped.partnerFamilyName = data.partnerFamilyName;
-      if (data.partnerDob) {
-        if (data.partnerDob.includes("-")) {
-          const [y, m, d] = data.partnerDob.split("-");
+      // AI returns standard names (firstName/surname/dateOfBirth) regardless of context — map both prefixed and plain
+      const pFirst = data.partnerFirstName || data.firstName;
+      const pFamily = data.partnerFamilyName || data.surname || data.lastName;
+      const pDobRaw = data.partnerDob || data.dateOfBirth;
+      const pGender = data.partnerGender || data.gender;
+      const pAddr = data.partnerAddress || data.address;
+      if (pFirst) mapped.partnerFirstName = pFirst;
+      if (pFamily) mapped.partnerFamilyName = pFamily;
+      if (pDobRaw) {
+        if (pDobRaw.includes("-")) {
+          const [y, m, d] = pDobRaw.split("-");
           if (d && m && y) mapped.partnerDob = `${d}/${m}/${y}`;
-        } else { mapped.partnerDob = data.partnerDob; }
+        } else { mapped.partnerDob = pDobRaw; }
       }
-      if (data.partnerAddress) mapped.partnerAddress = data.partnerAddress;
-      if (data.partnerGender) mapped.partnerGender = data.partnerGender;
+      if (pAddr) {
+        const full = [pAddr, data.suburb, data.state].filter(Boolean).join(", ");
+        mapped.partnerAddress = full || pAddr;
+        if (data.postcode) mapped.partnerPostcode = data.postcode;
+      }
+      if (pGender) mapped.partnerGender = pGender;
       break;
     }
     case "partnerPassport": {
-      if (data.partnerFirstName) mapped.partnerFirstName = data.partnerFirstName;
-      if (data.partnerFamilyName) mapped.partnerFamilyName = data.partnerFamilyName;
-      if (data.partnerDob) {
-        if (data.partnerDob.includes("-")) {
-          const [y, m, d] = data.partnerDob.split("-");
+      // Same fix — AI returns standard field names, not partner-prefixed ones
+      const pFirst = data.partnerFirstName || data.firstName;
+      const pFamily = data.partnerFamilyName || data.surname || data.lastName;
+      const pDobRaw = data.partnerDob || data.dateOfBirth;
+      const pGender = data.partnerGender || data.gender;
+      const pCob = data.partnerCountryOfBirth || data.countryOfBirth || data.placeOfBirth;
+      if (pFirst) mapped.partnerFirstName = pFirst;
+      if (pFamily) mapped.partnerFamilyName = pFamily;
+      if (pDobRaw) {
+        if (pDobRaw.includes("-")) {
+          const [y, m, d] = pDobRaw.split("-");
           if (d && m && y) mapped.partnerDob = `${d}/${m}/${y}`;
-        } else { mapped.partnerDob = data.partnerDob; }
+        } else { mapped.partnerDob = pDobRaw; }
       }
-      if (data.partnerGender) mapped.partnerGender = data.partnerGender;
-      if (data.partnerCountryOfBirth) mapped.partnerCountryOfBirth = data.partnerCountryOfBirth;
+      if (pGender) mapped.partnerGender = pGender;
+      if (pCob) mapped.partnerCountryOfBirth = pCob;
       break;
     }
     case "separationCertificate": {

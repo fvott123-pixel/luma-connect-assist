@@ -65,13 +65,14 @@ function splitAddress(addr: string): { line1: string; line2: string; line3: stri
   };
 }
 
-/** Set text field with explicit font size 10 and black color */
+/** Set text field — SA466 requires BLOCK CAPITALS throughout */
 function txt(form: any, field: string, value: string, fontSize = 10) {
   if (!value || isEmpty(value)) return;
   try {
     const f = form.getTextField(field);
     f.setFontSize(fontSize);
-    f.setText(value.trim());
+    // SA466 (and all Centrelink forms) require block capitals — uppercase everything
+    f.setText(value.trim().toUpperCase());
   } catch {}
 }
 

@@ -503,10 +503,11 @@ export const SA466_FIELDS: SA466Field[] = [
     skipIf: { field: "currentCountry", equals: "Australia", goTo: 44 } },
 
   { id: "travelledOverseas", questionNumber: 44, pageNumber: 11, x: 67, y: 515,
-    fieldType: "select", label: "Travelled Overseas", section: "residence",
+    fieldType: "select", label: "Overseas Passport", section: "residence",
     pdfField: "Q44",
     options: ["Yes","No"],
-    lumaQuestion: "Have you ever travelled outside Australia, including short trips? ✈️",
+    lumaQuestion: "Do you currently hold, or have you ever held, an overseas passport? 🛂",
+    lumaExplanation: "This includes any passport issued by a country other than Australia — even expired ones.",
     required: false,
     tickPositions: { "Yes":{x:67,y:515}, "No":{x:67,y:531} } },
 
