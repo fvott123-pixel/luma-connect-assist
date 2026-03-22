@@ -11,6 +11,7 @@ type Msg = {
   role: "user" | "assistant";
   content: string;
   buttons?: { label: string; value: string }[];
+  questionNumber?: number; // SA466 question number shown as badge
 };
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/luma-form-chat`;
@@ -285,14 +286,14 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       messages: [{ role: "user", content: prompt }],
       onDelta: (chunk) => {
         text += chunk;
-        setMessages(prev => [...prev.slice(0, -1).concat({ role: "assistant" as const, content: text, buttons })]);
+        setMessages(prev => [...prev.slice(0, -1).concat({ role: "assistant" as const, content: text, buttons, questionNumber: field.questionNumber })]);
       },
       onDone: () => {
-        setMessages(prev => [...prev, { role: "assistant", content: text, buttons }]);
+        setMessages(prev => [...prev, { role: "assistant", content: text, buttons, questionNumber: field.questionNumber }]);
         setIsLoading(false);
       },
       onError: () => {
-        setMessages(prev => [...prev, { role: "assistant", content: field.lumaQuestion, buttons }]);
+        setMessages(prev => [...prev, { role: "assistant", content: `Q${field.questionNumber}: ${field.lumaQuestion}`, buttons, questionNumber: field.questionNumber }]);
         setIsLoading(false);
       },
     });
@@ -351,17 +352,17 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       messages: [{ role: "user", content: prompt }],
       onDelta: (chunk) => {
         text += chunk;
-        setMessages([{ role: "assistant", content: text, buttons }]);
+        setMessages([{ role: "assistant", content: text, buttons, questionNumber: field.questionNumber }]);
       },
       onDone: () => {
-        setMessages([{ role: "assistant", content: text, buttons }]);
+        setMessages([{ role: "assistant", content: text, buttons, questionNumber: field.questionNumber }]);
         setIsLoading(false);
       },
       onError: () => {
         const fallback = isResuming
-          ? `Welcome back! 🎉 I've restored your progress. Let's continue.\n\n${field.lumaQuestion}`
-          : (field.lumaExplanation ? `${field.lumaExplanation}\n\n${field.lumaQuestion}` : field.lumaQuestion);
-        setMessages([{ role: "assistant", content: fallback, buttons }]);
+          ? `Welcome back! 🎉 I've restored your progress. Let's continue.\n\nQ${field.questionNumber}: ${field.lumaQuestion}`
+          : (field.lumaExplanation ? `${field.lumaExplanation}\n\nQ${field.questionNumber}: ${field.lumaQuestion}` : `Q${field.questionNumber}: ${field.lumaQuestion}`);
+        setMessages([{ role: "assistant", content: fallback, buttons, questionNumber: field.questionNumber }]);
         setIsLoading(false);
       },
     });
@@ -688,9 +689,10 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       const langName = LANG_NAMES[lang] || "English";
       const langInstruction = lang !== "EN" ? `IMPORTANT: Your ENTIRE response must be in ${langName}. Translate the question and explanation into ${langName}.` : "";
       const nextQ = nextField.lumaQuestion || `Please provide: ${nextField.label}`;
-      const prompt = `${langInstruction} You are Luma filling a government form with the user. The user just answered "${cleanAnswer}" for "${currentField.label}". Acknowledge their answer warmly in 1 sentence in ${langName}. ${sectionChange} Then IMMEDIATELY ask this EXACT next question: "${nextQ}" ${nextField.lumaExplanation ? `Briefly explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options are: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? '(Optional — they can say "none" to skip)' : ""} Do NOT ask what comes next — you already know. Keep it to 1-2 sentences total.`;
+      const prompt = `${langInstruction} You are Luma filling a government form with the user. The user just answered "${cleanAnswer}" for "${currentField.label}". Acknowledge their answer warmly in 1 sentence in ${langName}. ${sectionChange} Then IMMEDIATELY ask Question ${nextField.questionNumber}: "${nextQ}" ${nextField.lumaExplanation ? `Briefly explain: "${nextField.lumaExplanation}"` : ""} ${nextField.fieldType === "select" ? `Options are: ${nextField.options?.join(", ")}` : ""} ${!nextField.required ? '(Optional — they can say "none" to skip)' : ""} Do NOT ask what comes next — you already know. Keep it to 1-2 sentences total.`;
 
       const buttons = getButtonsForField(nextField);
+      const qNum = nextField.questionNumber;
       let text = "";
 
       streamResponse({
@@ -703,9 +705,9 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
           setMessages(prev => {
             const last = prev[prev.length - 1];
             if (last?.role === "assistant" && prev.length > messages.length + 1) {
-              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text, buttons } : m);
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: text, buttons, questionNumber: qNum } : m);
             }
-            return [...prev, { role: "assistant", content: text, buttons }];
+            return [...prev, { role: "assistant", content: text, buttons, questionNumber: qNum }];
           });
         },
         onDone: () => {
@@ -714,9 +716,9 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
         },
         onError: () => {
           const fallback = nextField.lumaExplanation
-            ? `${nextField.lumaExplanation}\n\n${nextField.lumaQuestion}`
-            : nextField.lumaQuestion;
-          setMessages(prev => [...prev, { role: "assistant", content: fallback, buttons }]);
+            ? `${nextField.lumaExplanation}\n\nQ${nextField.questionNumber}: ${nextField.lumaQuestion}`
+            : `Q${nextField.questionNumber}: ${nextField.lumaQuestion}`;
+          setMessages(prev => [...prev, { role: "assistant", content: fallback, buttons, questionNumber: qNum }]);
           setFieldIndex(nextIdx);
           setIsLoading(false);
         },
@@ -822,6 +824,13 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
         {messages.map((msg, i) => (
           <div key={i}>
+            {msg.role === "assistant" && msg.questionNumber && (
+              <div className="flex items-center gap-1.5 ml-9 mb-1">
+                <span className="inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary tracking-wide">
+                  Q{msg.questionNumber}
+                </span>
+              </div>
+            )}
             <div className={`flex gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               {msg.role === "assistant" && <LumaAvatar size={28} />}
               <div
@@ -904,31 +913,40 @@ const FormFillingChat = ({ serviceSlug, prefilled, onAnswersChange, onComplete, 
               </div>
             </div>
           )}
-          {/* None/Skip button for optional fields */}
-          {currentField && !currentField.required && !isComplete && (
+          {/* Persistent option buttons for select/yes-no fields — always visible, no waiting on stream */}
+          {currentField?.fieldType === "select" && currentField.options && !isComplete && (
             <div className="flex gap-1.5 mb-1.5 flex-wrap">
-              {["none","not sure","same","skip"].some(s => 
-                currentField.skipText?.toLowerCase() === s || 
-                currentField.lumaQuestion?.toLowerCase().includes("if not") ||
-                !currentField.required
-              ) && (
+              {currentField.options.map(opt => (
                 <button
-                  onClick={() => { setInput("none"); setTimeout(() => send(), 50); }}
+                  key={opt}
+                  onClick={() => processAnswer(opt)}
                   disabled={isLoading}
-                  className="rounded-lg px-3 py-1 text-xs font-bold border border-border bg-background text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+                  className="rounded-xl border border-primary bg-primary/10 px-4 py-1.5 text-xs font-bold text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-40"
+                >
+                  {opt}
+                </button>
+              ))}
+              {!currentField.required && (
+                <button
+                  onClick={() => processAnswer("none")}
+                  disabled={isLoading}
+                  className="rounded-xl border border-border bg-background px-4 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
                 >
                   None
                 </button>
               )}
-              {currentField.fieldType === "select" && currentField.options?.includes("Not sure") && (
-                <button
-                  onClick={() => { setInput("Not sure"); setTimeout(() => send(), 50); }}
-                  disabled={isLoading}
-                  className="rounded-lg px-3 py-1 text-xs font-bold border border-border bg-background text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
-                >
-                  Not sure
-                </button>
-              )}
+            </div>
+          )}
+          {/* None/Skip button for non-select optional fields */}
+          {currentField && !currentField.required && currentField.fieldType !== "select" && !isComplete && (
+            <div className="flex gap-1.5 mb-1.5 flex-wrap">
+              <button
+                onClick={() => { setInput("none"); setTimeout(() => send(), 50); }}
+                disabled={isLoading}
+                className="rounded-lg px-3 py-1 text-xs font-bold border border-border bg-background text-muted-foreground hover:bg-muted transition-all disabled:opacity-40"
+              >
+                None
+              </button>
             </div>
           )}
           <div className="flex gap-2">
