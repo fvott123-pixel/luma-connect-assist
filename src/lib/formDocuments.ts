@@ -199,6 +199,50 @@ const SHARED: Record<string, DocSlot> = {
     fills: "property address, owner name, property value",
     documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
   },
+
+  // ── NEW: missing from deep audit ──────────────────────────────────
+  citizenshipCert: {
+    id: "citizenshipCert", label: "Australian Citizenship Certificate", icon: "🇦🇺",
+    description: "Fills: citizenship date, country of birth, citizenship number",
+    fills: "date citizenship granted, country of birth, citizenship number",
+    documentType: "citizenshipCert", accept: "image/*,.pdf", priority: "recommended",
+  },
+  immiCard: {
+    id: "immiCard", label: "ImmiCard (evidence of immigration status)", icon: "🪪",
+    description: "Fills: visa subclass, grant date — alternative to visa grant letter",
+    fills: "visa class, grant date, expiry date",
+    documentType: "visaGrantLetter", accept: "image/*", priority: "optional",
+  },
+  partnerVisaLetter: {
+    id: "partnerVisaLetter", label: "Partner's Visa Grant Letter or ImmiCard", icon: "🌏",
+    description: "If your partner is not an Australian citizen — fills partner visa class and grant date",
+    fills: "partner visa class, partner visa grant date",
+    documentType: "partnerVisaLetter", accept: "image/*,.pdf", priority: "optional",
+  },
+  incomeProtectionLetter: {
+    id: "incomeProtectionLetter", label: "Income Protection Insurance Letter", icon: "📃",
+    description: "If you receive income protection — fills insurer, amount, policy reference",
+    fills: "income protection amount, insurer name, policy reference",
+    documentType: "incomeProtectionLetter", accept: "image/*,.pdf", priority: "optional",
+  },
+  assuranceOfSupportLetter: {
+    id: "assuranceOfSupportLetter", label: "Assurance of Support Letter", icon: "📨",
+    description: "If someone sponsored your migration — fills sponsor name, assurance reference",
+    fills: "assurance of support sponsor, reference number",
+    documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
+  },
+  redundancyLetter: {
+    id: "redundancyLetter", label: "Redundancy or Termination Letter", icon: "📄",
+    description: "Fills: redundancy payment amount, date terminated, employer name",
+    fills: "redundancy amount, termination date, employer name",
+    documentType: "separationCertificate", accept: "image/*,.pdf", priority: "optional",
+  },
+  vehicleRegistration: {
+    id: "vehicleRegistration", label: "Vehicle Registration Papers", icon: "🚗",
+    description: "Fills: vehicle make/model, registration number, market value",
+    fills: "vehicle details, registration number",
+    documentType: "ratesNotice", accept: "image/*,.pdf", priority: "optional",
+  },
 };
 
 // ─── Form-specific document configurations ──────────────────────────
@@ -211,60 +255,86 @@ export const FORM_DOCUMENTS: Record<string, FormDocConfig> = {
     formCode: "SA466",
     intro: "Upload these documents and I'll fill in as much of the form as possible automatically. The more you upload, the fewer questions you'll need to answer.",
     slots: [
-      // Identity — fills name, DOB, address, gender (Q2,Q3,Q5,Q6)
-      { ...SHARED.licenceFront, priority: "required" },
-      { ...SHARED.passport, priority: "recommended",
-        description: "Fills: name, DOB, nationality, country of birth — especially important if not born in Australia" },
-      
-      // Centrelink/Tax — fills CRN, TFN (Q1, Q120)
-      { ...SHARED.centrelinkCard },
-      { ...SHARED.taxLetter },
-      
-      // Bank — fills all bank fields (Q34)
-      { ...SHARED.bankStatement, priority: "required" },
-      
-      // Medical — fills condition, doctors, treatment (Q131-Q142)
+      // ── REQUIRED ────────────────────────────────────────────────────
+      // Identity Q2/Q3/Q5/Q6 — name, DOB, address, gender
+      { ...SHARED.licenceFront, priority: "required",
+        description: "Fills: your name, date of birth, address, postcode, gender" },
+      // Bank Q34 — BSB, account number, account name
+      { ...SHARED.bankStatement, priority: "required",
+        description: "Fills: bank name, BSB, account number, account name" },
+      // Medical Q131–Q135 — GP is the #1 document for DSP approval
       { ...SHARED.doctorLetter, priority: "required",
         description: "Fills: doctor name, clinic address, phone, profession — the most important document for DSP" },
       { ...SHARED.medicalReport, priority: "required",
         description: "Fills: your diagnosis, condition details, treatment — GP report or specialist letter" },
-      { ...SHARED.hospitalDischarge,
-        description: "Fills: condition, hospitalisation history, specialist details" },
-      { ...SHARED.specialistReport,
-        description: "Fills: second specialist details, diagnosis, prognosis" },
-      { ...SHARED.medicationList,
-        description: "Fills: current medications — shows your condition is being treated" },
-      
-      // Work history — fills employer, income (Q116-Q118)
-      { ...SHARED.separationCert,
-        description: "If you recently stopped working — fills employer name, separation date, last pay" },
-      { ...SHARED.payslips,
-        description: "Last 3 payslips — fills employer name, income, hours worked" },
-      
-      // Program of Support — mandatory for most DSP claims (Q139)
+      // Program of Support Q139 — mandatory for most DSP claims
       { ...SHARED.programOfSupportCert, priority: "required",
         description: "REQUIRED for most DSP claims — certificate from Workforce Australia or job program" },
-      
-      // Partner — fills all partner fields (Q54-Q80)
-      { ...SHARED.partnerLicence,
-        description: "If you have a partner — fills partner name, DOB, address, gender automatically" },
-      { ...SHARED.marriageCertificate,
-        description: "If married — fills relationship type and marriage date" },
-      
-      // Assets — fills shares/investments/property (Q83-Q107)
-      { ...SHARED.superStatement,
+
+      // ── RECOMMENDED ─────────────────────────────────────────────────
+      // Passport — fills nationality, country of birth, overseas travel Q44/Q45/Q46/Q47
+      { ...SHARED.passport, priority: "recommended",
+        description: "Fills: name, DOB, nationality, country of birth — especially important if not born in Australia" },
+      // Centrelink/Tax — CRN Q1, TFN Q120
+      { ...SHARED.centrelinkCard, priority: "recommended",
+        description: "Fills: Customer Reference Number (CRN)" },
+      { ...SHARED.taxLetter, priority: "recommended",
+        description: "Fills: Tax File Number (TFN), CRN" },
+      // Citizenship cert — fills Q45/Q46 (Australian citizen date granted)
+      { ...SHARED.citizenshipCert, priority: "recommended",
+        description: "If naturalised Australian — fills citizenship date, country of birth" },
+      // Visa grant letter — fills Q48/Q49 visa subclass and grant date
+      { ...SHARED.visaGrantLetter, priority: "recommended",
+        description: "If not Australian citizen — fills visa class, grant date, expiry (Q48/Q49)" },
+      // Medical supporting docs
+      { ...SHARED.hospitalDischarge, priority: "recommended",
+        description: "Fills: condition, hospitalisation history, specialist details" },
+      { ...SHARED.specialistReport, priority: "recommended",
+        description: "Fills: second specialist details, diagnosis, prognosis" },
+      { ...SHARED.medicationList, priority: "recommended",
+        description: "Fills: current medications — shows your condition is being treated" },
+      // Work Q116–Q118 — employer, separation, income
+      { ...SHARED.separationCert, priority: "recommended",
+        description: "If you recently stopped working — fills employer name, separation date, last pay" },
+      { ...SHARED.payslips, priority: "recommended",
+        description: "Last 3 payslips — fills employer name, income, hours worked" },
+      // Partner — Q54–Q80 partner details
+      { ...SHARED.partnerLicence, priority: "recommended",
+        description: "If you have a partner — fills partner name, DOB, address, gender (Q57/Q58/Q63)" },
+      { ...SHARED.partnerPassport, priority: "recommended",
+        description: "Partner's passport — fills partner DOB, nationality, overseas passport Q68/Q69/Q70" },
+      // Super/Assets Q83–Q107
+      { ...SHARED.superStatement, priority: "recommended",
         description: "Fills: super fund name and balance for assets test" },
-      { ...SHARED.investmentStatement },
+
+      // ── OPTIONAL ────────────────────────────────────────────────────
+      // Partner relationship & visa
+      { ...SHARED.marriageCertificate,
+        description: "If married or registered — fills relationship type and date (Q55)" },
+      { ...SHARED.partnerVisaLetter,
+        description: "If your partner is not an Australian citizen — fills partner visa class/grant date (Q74/Q75)" },
+      // Assets
+      { ...SHARED.investmentStatement,
+        description: "Fills: shares, managed fund value for assets test (Q96)" },
       { ...SHARED.ratesNotice,
-        description: "If you own property not lived in — fills property address and ownership details" },
+        description: "If you own property not lived in — fills property address and ownership (Q83/Q84)" },
+      { ...SHARED.vehicleRegistration,
+        description: "Fills: vehicle make/model, value for assets test (Q93)" },
+      // Compensation & income
       { ...SHARED.workersCompLetter,
         description: "If receiving workers compensation — fills compensation details (Q30)" },
-      
-      // Visa (for non-citizens) — fills visa type, arrival date (Q48-Q52)
-      { ...SHARED.visaGrantLetter, priority: "recommended",
-        description: "If not Australian citizen — fills visa class, grant date, expiry date" },
+      { ...SHARED.incomeProtectionLetter,
+        description: "If receiving income protection — fills insurer and amount (Q32)" },
+      { ...SHARED.redundancyLetter,
+        description: "If you received redundancy pay — fills amount and termination date (Q118)" },
+      // Accommodation
       { ...SHARED.leaseAgreement,
-        description: "If renting — fills rental address and weekly rent amount" },
+        description: "If renting — fills rental address and weekly rent amount (Q115)" },
+      // Immigration extras
+      { ...SHARED.immiCard,
+        description: "ImmiCard — alternative to visa grant letter for non-citizens" },
+      { ...SHARED.assuranceOfSupportLetter,
+        description: "If someone sponsored your migration — fills assurance of support details (Q51)" },
     ],
   },
 

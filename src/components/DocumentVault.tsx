@@ -1,8 +1,10 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { getFormDocuments, PRIORITY_LABELS, type DocSlot } from "@/lib/formDocuments";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
+import { generateMobileCode, pollMobileData } from "@/lib/mobileSession";
 
 export interface DocumentSlot {
   id: string;
@@ -329,12 +331,6 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.superBalance) mapped.superBalance = data.superBalance;
       break;
     }
-    case "visaGrantLetter": {
-      if (data.visaClass) mapped.visaType = data.visaClass;
-      if (data.visaGrantDate) mapped.visaGrantDate = data.visaGrantDate;
-      if (data.visaExpiryDate) mapped.visaExpiryDate = data.visaExpiryDate;
-      break;
-    }
     case "birthCertificate": {
       if (data.firstName) mapped.firstName = data.firstName;
       if (data.surname) mapped.familyName = data.surname;
@@ -402,6 +398,70 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.propertyAddress) mapped.propertyAddress = data.propertyAddress;
       if (data.ownerName) mapped.propertyOwnerName = data.ownerName;
       mapped.ownHomeNotLiving = "Yes";
+      break;
+    }
+
+    // ── New document types from deep audit ──────────────────────────
+    case "citizenshipCert": {
+      // Australian Citizenship Certificate → Q45/Q46
+      if (data.dateGranted || data.grantDate) mapped.citizenshipDate = data.dateGranted || data.grantDate || "";
+      if (data.countryOfBirth) mapped.countryOfBirth = data.countryOfBirth;
+      if (data.certificateNumber) mapped.citizenshipNumber = data.certificateNumber;
+      if (data.firstName) mapped.firstName = mapped.firstName || data.firstName;
+      if (data.surname) mapped.familyName = mapped.familyName || data.surname;
+      // Citizenship cert confirms Australian citizenship
+      mapped.australianCitizen = "Yes";
+      mapped.australianCitizenBornHere = "No"; // naturalised
+      break;
+    }
+
+    case "partnerVisaLetter": {
+      // Partner's visa grant letter → Q74/Q75
+      if (data.visaClass || data.visaSubclass) mapped.partnerVisaType = data.visaClass || data.visaSubclass || "";
+      if (data.visaGrantDate) mapped.partnerVisaGrantDate = data.visaGrantDate;
+      if (data.visaExpiryDate) mapped.partnerVisaExpiryDate = data.visaExpiryDate;
+      if (data.firstName) mapped.partnerFirstName = mapped.partnerFirstName || data.firstName;
+      if (data.surname) mapped.partnerFamilyName = mapped.partnerFamilyName || data.surname;
+      // Partner is not Australian citizen if they have a visa
+      mapped.partnerAustralianCitizen = "No";
+      break;
+    }
+
+    case "incomeProtectionLetter": {
+      // Income protection insurance → Q32
+      if (data.weeklyAmount || data.monthlyAmount || data.amount) {
+        mapped.incomeProtectionAmount = data.weeklyAmount || data.monthlyAmount || data.amount || "";
+      }
+      if (data.insurerName || data.insurer) mapped.incomeProtectionInsurer = data.insurerName || data.insurer || "";
+      if (data.policyNumber) mapped.incomeProtectionPolicy = data.policyNumber;
+      mapped.getsIncomeProtection = "Yes";
+      break;
+    }
+
+    case "vehicleRegistration": {
+      // Vehicle registration → assets test Q93
+      if (data.make || data.model) mapped.vehicleDescription = [data.make, data.model, data.year].filter(Boolean).join(" ");
+      if (data.registrationNumber) mapped.vehicleRego = data.registrationNumber;
+      if (data.marketValue || data.value) mapped.vehicleValue = data.marketValue || data.value || "";
+      mapped.hasVehicle = "Yes";
+      break;
+    }
+
+    case "redundancyLetter": {
+      // Redundancy / termination letter → Q118
+      if (data.redundancyAmount || data.amount) mapped.redundancyAmount = data.redundancyAmount || data.amount || "";
+      if (data.terminationDate || data.separationDate) mapped.terminationDate = data.terminationDate || data.separationDate || "";
+      if (data.employerName) mapped.lastEmployerName = mapped.lastEmployerName || data.employerName;
+      mapped.receivedRedundancy = "Yes";
+      break;
+    }
+
+    case "visaGrantLetter": {
+      // Visa grant letter (claimant) → Q49 visa subclass and grant date
+      if (data.visaClass || data.visaSubclass) mapped.visaType = data.visaClass || data.visaSubclass || "";
+      if (data.visaGrantDate) mapped.visaGrantDate = data.visaGrantDate;
+      if (data.visaExpiryDate) mapped.visaExpiryDate = data.visaExpiryDate;
+      if (data.clientName || data.firstName) mapped.firstName = mapped.firstName || data.clientName || data.firstName || "";
       break;
     }
   }
@@ -491,6 +551,39 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
   const [summaries, setSummaries] = useState<string[]>([]);
   const [discrepancies, setDiscrepancies] = useState<string[]>([]);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  // ── Mobile scan session ──────────────────────────────────────────
+  const [mobileCode] = useState<string>(() => generateMobileCode());
+  const [mobileDocs, setMobileDocs] = useState(0);          // docs scanned on phone
+  const [mobileFields, setMobileFields] = useState(0);      // fields received from phone
+  const [lastMobilePoll, setLastMobilePoll] = useState(0);  // doc_count at last merge
+  const mobileUrl = `${window.location.origin}/mobile-upload/${mobileCode}`;
+
+  // Poll every 4 seconds for data pushed by the mobile page
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const result = await pollMobileData(mobileCode);
+      if (!result || result.doc_count === 0) return;
+      if (result.doc_count <= lastMobilePoll) return; // nothing new
+
+      // Merge new extracted fields into our state
+      const newExtracted = result.extracted as Record<string, string>;
+      const newFieldCount = Object.keys(newExtracted).length;
+
+      setAllExtracted(prev => ({ ...prev, ...newExtracted }));
+      setSummaries(prev => {
+        const incoming = (result.summaries as string[]) || [];
+        const fresh = incoming.filter(s => !prev.includes(s));
+        return fresh.length ? [...prev, ...fresh] : prev;
+      });
+      setMobileDocs(result.doc_count);
+      setMobileFields(newFieldCount);
+      setLastMobilePoll(result.doc_count);
+      toast.success(`📱 ${result.doc_count} document${result.doc_count !== 1 ? "s" : ""} received from your phone! ${newFieldCount} fields pre-filled.`);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [mobileCode, lastMobilePoll]);
 
   const uploadedOrSkippedCount = Object.values(statuses).filter(s => s !== "idle" && s !== "uploading").length;
 
@@ -816,11 +909,65 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
             </div>
           )}
 
+          {/* ── PHONE SCAN PANEL ── */}
+          <div className={`rounded-xl border-2 p-4 transition-all ${
+            mobileDocs > 0
+              ? "border-green-500/50 bg-green-50"
+              : "border-primary/30 bg-primary/5"
+          }`}>
+            {mobileDocs > 0 ? (
+              // ── RECEIVED STATE ──
+              <div className="text-center">
+                <div className="text-2xl">📱✅</div>
+                <p className="mt-1 text-xs font-extrabold text-green-700">
+                  {mobileDocs} document{mobileDocs !== 1 ? "s" : ""} received from your phone!
+                </p>
+                <p className="text-[10px] text-green-600 mt-0.5">
+                  {mobileFields} fields pre-filled. Keep your phone open to scan more.
+                </p>
+                {/* Small QR still accessible */}
+                <div className="mt-2 flex justify-center">
+                  <div className="bg-white p-1.5 rounded-lg border border-green-300 inline-block">
+                    <QRCodeSVG value={mobileUrl} size={64} />
+                  </div>
+                </div>
+                <p className="mt-1 text-[9px] text-muted-foreground font-mono">{mobileCode}</p>
+              </div>
+            ) : (
+              // ── WAITING STATE ──
+              <div>
+                <p className="text-xs font-extrabold text-primary text-center mb-1">
+                  📱 Easier on your phone?
+                </p>
+                <p className="text-[10px] text-muted-foreground text-center leading-snug mb-3">
+                  Scan this QR code with your phone camera. Use your phone to photograph documents — results sync here automatically.
+                </p>
+                <div className="flex justify-center">
+                  <div className="bg-white p-2.5 rounded-xl border-2 border-primary/20 shadow-sm inline-block">
+                    <QRCodeSVG value={mobileUrl} size={120} level="M"
+                      imageSettings={{ src: "", height: 0, width: 0, excavate: false }} />
+                  </div>
+                </div>
+                <p className="mt-2 text-center text-[10px] text-muted-foreground">
+                  Session code: <span className="font-mono font-bold text-foreground">{mobileCode}</span>
+                </p>
+                <p className="mt-1.5 text-center text-[9px] text-muted-foreground italic">
+                  Waiting for phone… scanning every 4 seconds
+                </p>
+                <div className="mt-2 flex justify-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Tips */}
           <div className="rounded-xl border border-border bg-card p-3">
             <div className="text-[11px] font-bold text-foreground mb-1.5">💡 Tips</div>
             <ul className="space-y-1 text-[10px] text-muted-foreground">
-              <li>📱 <span className="font-semibold">Phone camera</span> — best for most documents</li>
+              <li>📱 <span className="font-semibold">Phone camera</span> — scan the QR above for best results</li>
               <li>📄 <span className="font-semibold">PDF files</span> — accepted for bank/medical docs</li>
               <li>☀️ <span className="font-semibold">Good lighting</span> — helps Luma read text clearly</li>
               <li>🔒 <span className="font-semibold">100% private</span> — deleted immediately after scan</li>

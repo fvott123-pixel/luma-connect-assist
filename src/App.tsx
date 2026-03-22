@@ -11,6 +11,7 @@ import PrepareForm from "./pages/PrepareForm";
 import Volunteer from "./pages/Volunteer";
 import About from "./pages/About";
 import FillForm from "./pages/FillForm";
+import MobileUpload from "./pages/MobileUpload";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/service/:slug" element={<ServicePage />} />
             <Route path="/prepare-form" element={<PrepareForm />} />
             <Route path="/fill-form/:slug" element={<FillForm />} />
+            <Route path="/mobile-upload/:code" element={<MobileUpload />} />
             <Route path="/volunteer" element={<Volunteer />} />
             <Route path="/about" element={<About />} />
             <Route path="/disability-support" element={<Navigate to="/service/disability-support" replace />} />
