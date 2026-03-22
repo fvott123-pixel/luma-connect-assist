@@ -161,7 +161,8 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.dob) dmy(form, "Q3.DateOfBirth", data.dob);
 
   // ══ Q4 — Other names ══
-  if (!isEmpty(data.otherNames || "")) txt(form, "Q4Details.0.OtherName", data.otherNames || "");
+  if (data.otherNames) btn(form, "Q4", data.otherNames);
+  if (!isEmpty(data.otherNameDetails || "")) txt(form, "Q4Details.0.OtherName", data.otherNameDetails || "");
 
   // ══ Q5 — Gender ══
   if (data.gender) {
@@ -260,12 +261,21 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (!isEmpty(data.countryOfBirth        || "")) txt(form, "Q46", data.countryOfBirth        || "");
   if (!isEmpty(data.countryOfCitizenship  || "")) txt(form, "Q47Details.CoC", data.countryOfCitizenship || "");
   if (data.australianCitizen)  btn(form, "Q47", data.australianCitizen);
-  if (data.permanentResident)  btn(form, "Q48", data.permanentResident);
+  if (data.permanentResident) {
+    const q48: Record<string,string> = {
+      "Permanent": "Perm", "Temporary": "Temp", "NZ citizen": "NZ", "Not sure": "NotSure"
+    };
+    const v48 = q48[data.permanentResident] || data.permanentResident;
+    btn(form, "Q48", v48);
+  }
   if (!isEmpty(data.visaType || "")) txt(form, "Q49.VisaClass", data.visaType || "");
   if (data.visaChanged)        btn(form, "Q50", data.visaChanged);
   if (data.livedBefor1965)     btn(form, "Q51", data.livedBefor1965);
-  if (data.assuranceOfSupport) btn(form, "Q52", data.assuranceOfSupport);
-  if (data.travelledOverseas)  btn(form, "Q53", data.travelledOverseas);
+  if (data.assuranceOfSupport) {
+    const v52 = data.assuranceOfSupport === "Not sure" ? "NotSure" : data.assuranceOfSupport;
+    btn(form, "Q52", v52);
+  }
+  if (data.overseasTravelDetails) btn(form, "Q53", data.overseasTravelDetails);
 
   // ══ Q54-64 — Partner ══
   if (data.hasPartner) btn(form, "Q54", data.hasPartner);
@@ -321,15 +331,18 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.partnerLivedInAustralia)  btn(form, "Q73", data.partnerLivedInAustralia);
   if (data.partnerVisaType) {
     const m: Record<string,string> = {
-      "Permanent":"Perm","Temporary":"Temp","New Zealand":"NZ","Not sure":"NotSure"
+      "Permanent":"Perm","Temporary":"Temp",
+      "NZ citizen":"NZ","New Zealand":"NZ","Not sure":"NotSure"
     };
-    if (m[data.partnerVisaType]) btn(form, "Q74", m[data.partnerVisaType]);
+    const v74 = m[data.partnerVisaType] || data.partnerVisaType;
+    btn(form, "Q74", v74);
   }
   if (!isEmpty(data.partnerCurrentVisa || "")) txt(form, "Q75.VisaClass", data.partnerCurrentVisa || "");
 
   if (data.currentRelationshipStatus) {
     const m: Record<string,string> = {
-      "Separated":"Separated","Divorced":"Divorced","Widowed":"Widowed","Never had partner":"NeverPartner"
+      "Separated":"Separated","Divorced":"Divorced","Widowed":"Widowed",
+      "Never had a partner":"NeverPartner","Never had partner":"NeverPartner"
     };
     if (m[data.currentRelationshipStatus]) btn(form, "Q77", m[data.currentRelationshipStatus]);
   }
@@ -341,19 +354,33 @@ export async function prefillSA466(data: SA466FormData, signatureDataUrl?: strin
   if (data.shareAccommodation) btn(form, "Q81", data.shareAccommodation);
   if (data.ownHomeNotLiving)   btn(form, "Q83", data.ownHomeNotLiving);
   if (data.soldFormerHome)     btn(form, "Q85", data.soldFormerHome);
-  if (data.accommodationType)  btn(form, "Q86", data.accommodationType);
+  if (data.accommodationType) {
+    const q86: Record<string,string> = {
+      "Own home":"Own", "Renting privately":"PrivateRent", "Public housing":"PubHousing",
+      "Boarding house":"Boarding", "Retirement village":"RetireVillage",
+      "Aged care home":"PCPT", "Nursing home":"NursingHome",
+      "Life interest":"Life", "No rent (living rent free)":"NoRent", "Other":"Other"
+    };
+    const v86 = q86[data.accommodationType] || data.accommodationType;
+    btn(form, "Q86", v86);
+  }
   if (data.siteMooringFees)    btn(form, "Q87", data.siteMooringFees);
   if (data.nameOnLease)        btn(form, "Q88", data.nameOnLease);
   if (data.whyNotInOwnHome) {
     const m: Record<string,string> = {
-      "Study":"Study","Medical treatment":"MedTreatment","Receiving care":"ReceiveCarePH",
+      "Study":"Study","Medical treatment":"MedTreatment",
+      "Receiving care at someone's home":"ReceiveCarePH",
+      "Receiving care in nursing home":"ReceiveCareNH",
       "Providing care":"ProvideCarePH","Overseas":"Overseas","Other":"Other"
     };
     if (m[data.whyNotInOwnHome]) btn(form, "Q84.Reason", m[data.whyNotInOwnHome]);
   }
 
   // ══ Q89-116 — Rent/boarding ══
-  if (data.primaryTenantMarketRate) btn(form, "Q89", data.primaryTenantMarketRate);
+  if (data.primaryTenantMarketRate) {
+    const v89 = data.primaryTenantMarketRate === "Not sure" ? "NotSure" : data.primaryTenantMarketRate;
+    btn(form, "Q89", v89);
+  }
   if (data.liveWithPrimaryTenant)   btn(form, "Q90", data.liveWithPrimaryTenant);
   if (!isEmpty(data.agedCareHomeName || "")) txt(form, "Q91", data.agedCareHomeName || "");
   if (data.agedCareMoveInDate) dmy(form, "Q92.Y", data.agedCareMoveInDate);
