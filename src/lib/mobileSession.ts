@@ -17,11 +17,12 @@ export async function pushMobileData(
   extracted: Record<string, string>,
   summaries: string[],
 ): Promise<void> {
-  await fetch(EDGE_URL, {
+  const res = await fetch(EDGE_URL, {
     method: "POST",
     headers: HEADERS,
     body: JSON.stringify({ session_code: sessionCode, extracted, summaries }),
   });
+  if (!res.ok) throw new Error("mobile-session sync failed");
 }
 
 /** Poll for data synced from mobile — returns null if nothing found */
