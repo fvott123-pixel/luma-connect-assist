@@ -542,6 +542,42 @@ function crossCheckIdDocuments(allExtracted: Record<string, string>): string[] {
   return discrepancies;
 }
 
+/**
+ * Compress image to max 1600px JPEG.
+ * On iOS, Safari decodes HEIC natively via Image + canvas — output is always JPEG.
+ * Fixes HEIC rejections from Anthropic and reduces 3-5 MB photos to ~100-300 KB.
+ */
+async function compressImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      const MAX_DIM = 1600;
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round(height * MAX_DIM / width);
+          width = MAX_DIM;
+        } else {
+          width = Math.round(width * MAX_DIM / height);
+          height = MAX_DIM;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas not available")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      resolve({ base64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not decode image")); };
+    img.src = url;
+  });
+}
+
 const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-pension" }: DocumentVaultProps) => {
   const formConfig = getFormDocuments(formSlug);
   const DOCUMENT_SLOTS_FOR_FORM: DocSlot[] = formConfig.slots;
@@ -598,17 +634,11 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
     setStatuses(prev => ({ ...prev, [slot.id]: "uploading" }));
 
     try {
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
-
-      const { data, error } = await supabase.functions.invoke("extract-document", {
-        body: { image: base64, mimeType: file.type, documentType: slot.documentType },
-      });
+          // Compress & convert to JPEG (handles HEIC on iOS via canvas automatically)
+    const { base64, mimeType: imgMime } = await compressImage(file);
+    const { data, error } = await supabase.functions.invoke("extract-document", {
+      body: { image: base64, mimeType: imgMime, documentType: slot.documentType },
+    });
 
       if (error) throw error;
 
@@ -640,10 +670,21 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
       } else {
         throw new Error("No data extracted");
       }
-    } catch (err: any) {
+      } catch (err: any) {
       console.error(`Document extraction error (${slot.id}):`, err);
       setStatuses(prev => ({ ...prev, [slot.id]: "error" }));
-      toast.error(`Could not read ${slot.label}. Please try a clearer photo or skip.`);
+      const msg = (err?.message ?? "") as string;
+      let tip = "Try a clearer, well-lit photo.";
+      if (msg.includes("unsupported_format") || msg.toLowerCase().includes("heic")) {
+        tip = "iPhone: Settings → Camera → Formats → Most Compatible.";
+      } else if (msg.includes("image_too_large") || msg.includes("too large")) {
+        tip = "Photo too large — try a lower-resolution shot.";
+      } else if (msg.includes("timeout")) {
+        tip = "Request timed out — please try again.";
+      } else if (msg && msg !== "No data extracted" && msg.length < 120) {
+        tip = msg;
+      }
+      toast.error(`Could not read ${slot.label}. ${tip}`, { duration: 7000 });
     }
   };
 
