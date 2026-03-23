@@ -18,6 +18,42 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
   return data;
 }
 
+/**
+ * Compress image to max 1600px JPEG.
+ * On iOS, Safari decodes HEIC natively via Image + canvas — output is always JPEG.
+ * This fixes HEIC rejections from Anthropic and reduces 3-5 MB photos to ~100-300 KB.
+ */
+async function compressImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const canvas = document.createElement("canvas");
+      const MAX_DIM = 1600;
+      let { width, height } = img;
+      if (width > MAX_DIM || height > MAX_DIM) {
+        if (width > height) {
+          height = Math.round(height * MAX_DIM / width);
+          width = MAX_DIM;
+        } else {
+          width = Math.round(width * MAX_DIM / height);
+          height = MAX_DIM;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) { reject(new Error("Canvas not available")); return; }
+      ctx.drawImage(img, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+      resolve({ base64: dataUrl.split(",")[1], mimeType: "image/jpeg" });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Could not decode image")); };
+    img.src = url;
+  });
+}
+
 type SlotStatus = "idle" | "uploading" | "done" | "error" | "skipped";
 
 export default function MobileUpload() {
@@ -45,20 +81,19 @@ export default function MobileUpload() {
   }
 
   const handleFile = async (slot: DocSlot, file: File) => {
-    if (file.size > 15 * 1024 * 1024) { toast.error("File too large — max 15 MB"); return; }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File too large — max 20 MB");
+      return;
+    }
     setStatuses(prev => ({ ...prev, [slot.id]: "uploading" }));
 
     try {
-      // Convert to base64
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      const base64 = btoa(binary);
+      // Compress & convert to JPEG (handles HEIC on iOS via canvas automatically)
+      const { base64, mimeType: imgMime } = await compressImage(file);
 
       // Extract via Supabase function
       const { data, error } = await supabase.functions.invoke("extract-document", {
-        body: { image: base64, mimeType: file.type, documentType: slot.documentType },
+        body: { image: base64, mimeType: imgMime, documentType: slot.documentType },
       });
       if (error) throw error;
 
@@ -85,22 +120,33 @@ export default function MobileUpload() {
       }
     } catch (err: any) {
       setStatuses(prev => ({ ...prev, [slot.id]: "error" }));
-      toast.error(`Could not read ${slot.label}. Try a clearer photo.`);
+      const msg = (err?.message ?? "") as string;
+      let tip = "Try a clearer, well-lit photo.";
+      if (msg.includes("unsupported_format") || msg.toLowerCase().includes("heic")) {
+        tip = "iPhone: Settings → Camera → Formats → Most Compatible.";
+      } else if (msg.includes("image_too_large") || msg.includes("too large")) {
+        tip = "Photo too large — try a lower-resolution shot.";
+      } else if (msg.includes("timeout")) {
+        tip = "Request timed out — please try again.";
+      } else if (msg && msg !== "No data extracted" && msg.length < 120) {
+        tip = msg;
+      }
+      toast.error(`Could not read ${slot.label}. ${tip}`, { duration: 7000 });
     }
   };
 
-  const required    = slots.filter(s => s.priority === "required");
+  const required = slots.filter(s => s.priority === "required");
   const recommended = slots.filter(s => s.priority === "recommended");
-  const optional    = slots.filter(s => !s.priority || s.priority === "optional");
+  const optional = slots.filter(s => !s.priority || s.priority === "optional");
 
   const renderSlot = (slot: DocSlot) => {
     const status = statuses[slot.id];
     return (
       <div key={slot.id} className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 transition-all ${
-        status === "done"      ? "border-green-500/40 bg-green-50" :
+        status === "done" ? "border-green-500/40 bg-green-50" :
         status === "uploading" ? "border-primary/40 bg-primary/5 animate-pulse" :
-        status === "error"     ? "border-red-400/40 bg-red-50" :
-        status === "skipped"   ? "border-border/30 opacity-40" :
+        status === "error" ? "border-red-400/40 bg-red-50" :
+        status === "skipped" ? "border-border/30 opacity-40" :
         "border-border bg-white hover:border-primary/40"
       }`}>
         <span className="text-xl w-7 text-center shrink-0">
