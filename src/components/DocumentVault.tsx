@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { generateMobileCode, pollMobileData } from "@/lib/mobileSession";
+const PhoneCameraDemo = lazy(() => import("@/components/PhoneCameraDemo").then(m => ({ default: m.PhoneCameraDemo })));
 
 export interface DocumentSlot {
   id: string;
