@@ -973,7 +973,19 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
               <li>☀️ <span className="font-semibold">Good lighting</span> — helps Luma read text clearly</li>
               <li>🔒 <span className="font-semibold">100% private</span> — deleted immediately after scan</li>
             </ul>
+            <button
+              onClick={() => setShowDemo(true)}
+              className="mt-2 w-full rounded-lg border border-primary/20 bg-primary/5 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors"
+            >
+              ▶️ Watch how it works
+            </button>
           </div>
+
+          {showDemo && (
+            <Suspense fallback={null}>
+              <PhoneCameraDemo onClose={() => setShowDemo(false)} />
+            </Suspense>
+          )}
         </div>
 
         {/* Sticky CTA */}
