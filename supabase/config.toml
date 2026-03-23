@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.translate-answer]
 verify_jwt = false
+
+[functions.mobile-session]
+verify_jwt = false
