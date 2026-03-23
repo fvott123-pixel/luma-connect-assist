@@ -986,6 +986,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
               <li>âï¸ <span className="font-semibold">Good lighting</span> â helps Luma read text clearly</li>
               <li>ð <span className="font-semibold">100% private</span> â deleted immediately after scan</li>
             </ul>
+          </div>
         </div>
 
         {/* Sticky CTA */}
