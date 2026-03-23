@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { getFormDocuments, PRIORITY_LABELS, type DocSlot } from "@/lib/formDocuments";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { supabase } from "@/integrations/supabase/client";
