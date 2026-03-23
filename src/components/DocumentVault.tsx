@@ -19,25 +19,25 @@ export interface DocumentSlot {
 const DOCUMENT_SLOTS: DocumentSlot[] = [
   {
     id: "licenceFront",
-    label: "Driver's Licence â Front",
+    label: "Driver's Licence — Front",
     description: "Full name, date of birth, address, licence number",
-    icon: "ðªª",
+    icon: "🪪",
     documentType: "licenceFront",
     accept: "image/*",
   },
   {
     id: "licenceBack",
-    label: "Driver's Licence â Back",
+    label: "Driver's Licence — Back",
     description: "Additional licence details and barcode",
-    icon: "ð",
+    icon: "🔄",
     documentType: "licenceBack",
     accept: "image/*",
   },
   {
     id: "passport",
-    label: "Passport â Photo Page",
+    label: "Passport — Photo Page",
     description: "Full name, date of birth, passport number, nationality, expiry",
-    icon: "ð",
+    icon: "🛂",
     documentType: "passport",
     accept: "image/*",
   },
@@ -45,7 +45,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "medicareCard",
     label: "Medicare Card",
     description: "For your Medicare number",
-    icon: "ð",
+    icon: "💚",
     documentType: "medicareCard",
     accept: "image/*",
   },
@@ -53,7 +53,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "centrelinkCard",
     label: "Centrelink Concession Card",
     description: "For your Customer Reference Number (CRN)",
-    icon: "ðï¸",
+    icon: "🏛️",
     documentType: "centrelinkCard",
     accept: "image/*",
   },
@@ -61,7 +61,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "bankStatement",
     label: "Bank Statement",
     description: "For your BSB and account number",
-    icon: "ð¦",
+    icon: "🏦",
     documentType: "bankStatement",
     accept: "image/*,.pdf",
   },
@@ -69,7 +69,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "taxReturn",
     label: "Centrelink or Tax Letter",
     description: "For your Tax File Number or CRN",
-    icon: "ð",
+    icon: "📄",
     documentType: "taxReturn",
     accept: "image/*,.pdf",
   },
@@ -77,7 +77,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "medicalReport",
     label: "Medical Reports or Specialist Letters",
     description: "For your disability and doctor details",
-    icon: "ð¥",
+    icon: "🏥",
     documentType: "medicalReport",
     accept: "image/*,.pdf",
   },
@@ -85,7 +85,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "leaseAgreement",
     label: "Lease or Rental Agreement",
     description: "For your address and rent details",
-    icon: "ð ",
+    icon: "🏠",
     documentType: "leaseAgreement",
     accept: "image/*,.pdf",
   },
@@ -93,7 +93,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "doctorLetter",
     label: "Doctor or Specialist Letter",
     description: "Fills doctor name, address, phone, profession, and condition details",
-    icon: "ð¨ââï¸",
+    icon: "👨‍⚕️",
     documentType: "doctorLetter",
     accept: "image/*,.pdf",
   },
@@ -101,7 +101,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "partnerLicence",
     label: "Partner's Driver's Licence",
     description: "Auto-fills your partner's name, DOB, address, and gender",
-    icon: "ð«",
+    icon: "👫",
     documentType: "partnerLicence",
     accept: "image/*",
   },
@@ -109,7 +109,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "partnerPassport",
     label: "Partner's Passport",
     description: "Auto-fills your partner's name, DOB, country of birth",
-    icon: "ð",
+    icon: "🛂",
     documentType: "partnerPassport",
     accept: "image/*",
   },
@@ -117,7 +117,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "separationCertificate",
     label: "Employment Separation Certificate",
     description: "Employer name, separation date, last pay details (SU001 form)",
-    icon: "ð",
+    icon: "📋",
     documentType: "separationCertificate",
     accept: "image/*,.pdf",
   },
@@ -125,7 +125,7 @@ const DOCUMENT_SLOTS: DocumentSlot[] = [
     id: "taxLetter",
     label: "ATO Tax Letter or myGov Letter",
     description: "Extracts your Tax File Number (TFN)",
-    icon: "ð¢",
+    icon: "🔢",
     documentType: "taxLetter",
     accept: "image/*,.pdf",
   },
@@ -193,16 +193,16 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       if (data.expiryDate) mapped.passportExpiry = data.expiryDate;
       if (data.gender) mapped.passport_gender = data.gender;
 
-      // ââ Derive citizenship/residence answers from passport nationality ââ
+      // ── Derive citizenship/residence answers from passport nationality ──
       if (data.nationality) {
         const nat = data.nationality.toLowerCase();
         if (nat.includes("austral")) {
-          // Australian passport â Australian citizen, currently living in Australia
+          // Australian passport → Australian citizen, currently living in Australia
           mapped.australianCitizen = "Yes";
           mapped.currentCountry = "Australia";
         }
       }
-      // Country of birth â if passport or OCR provides it
+      // Country of birth — if passport or OCR provides it
       if (data.placeOfBirth || data.countryOfBirth) {
         const birthPlace = (data.placeOfBirth || data.countryOfBirth || "").toLowerCase();
         mapped.countryOfBirth = data.placeOfBirth || data.countryOfBirth || "";
@@ -275,7 +275,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       break;
     }
     case "partnerLicence": {
-      // AI returns standard names (firstName/surname/dateOfBirth) regardless of context â map both prefixed and plain
+      // AI returns standard names (firstName/surname/dateOfBirth) regardless of context — map both prefixed and plain
       const pFirst = data.partnerFirstName || data.firstName;
       const pFamily = data.partnerFamilyName || data.surname || data.lastName;
       const pDobRaw = data.partnerDob || data.dateOfBirth;
@@ -298,7 +298,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       break;
     }
     case "partnerPassport": {
-      // Same fix â AI returns standard field names, not partner-prefixed ones
+      // Same fix — AI returns standard field names, not partner-prefixed ones
       const pFirst = data.partnerFirstName || data.firstName;
       const pFamily = data.partnerFamilyName || data.surname || data.lastName;
       const pDobRaw = data.partnerDob || data.dateOfBirth;
@@ -402,9 +402,9 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
       break;
     }
 
-    // ââ New document types from deep audit ââââââââââââââââââââââââââ
+    // ── New document types from deep audit ──────────────────────────
     case "citizenshipCert": {
-      // Australian Citizenship Certificate â Q45/Q46
+      // Australian Citizenship Certificate → Q45/Q46
       if (data.dateGranted || data.grantDate) mapped.citizenshipDate = data.dateGranted || data.grantDate || "";
       if (data.countryOfBirth) mapped.countryOfBirth = data.countryOfBirth;
       if (data.certificateNumber) mapped.citizenshipNumber = data.certificateNumber;
@@ -417,7 +417,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
 
     case "partnerVisaLetter": {
-      // Partner's visa grant letter â Q74/Q75
+      // Partner's visa grant letter → Q74/Q75
       if (data.visaClass || data.visaSubclass) mapped.partnerVisaType = data.visaClass || data.visaSubclass || "";
       if (data.visaGrantDate) mapped.partnerVisaGrantDate = data.visaGrantDate;
       if (data.visaExpiryDate) mapped.partnerVisaExpiryDate = data.visaExpiryDate;
@@ -429,7 +429,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
 
     case "incomeProtectionLetter": {
-      // Income protection insurance â Q32
+      // Income protection insurance → Q32
       if (data.weeklyAmount || data.monthlyAmount || data.amount) {
         mapped.incomeProtectionAmount = data.weeklyAmount || data.monthlyAmount || data.amount || "";
       }
@@ -440,7 +440,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
 
     case "vehicleRegistration": {
-      // Vehicle registration â assets test Q93
+      // Vehicle registration → assets test Q93
       if (data.make || data.model) mapped.vehicleDescription = [data.make, data.model, data.year].filter(Boolean).join(" ");
       if (data.registrationNumber) mapped.vehicleRego = data.registrationNumber;
       if (data.marketValue || data.value) mapped.vehicleValue = data.marketValue || data.value || "";
@@ -449,7 +449,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
 
     case "redundancyLetter": {
-      // Redundancy / termination letter â Q118
+      // Redundancy / termination letter → Q118
       if (data.redundancyAmount || data.amount) mapped.redundancyAmount = data.redundancyAmount || data.amount || "";
       if (data.terminationDate || data.separationDate) mapped.terminationDate = data.terminationDate || data.separationDate || "";
       if (data.employerName) mapped.lastEmployerName = mapped.lastEmployerName || data.employerName;
@@ -458,7 +458,7 @@ function mapToFormFields(documentType: string, data: Record<string, string>): Re
     }
 
     case "visaGrantLetter": {
-      // Visa grant letter (claimant) â Q49 visa subclass and grant date
+      // Visa grant letter (claimant) → Q49 visa subclass and grant date
       if (data.visaClass || data.visaSubclass) mapped.visaType = data.visaClass || data.visaSubclass || "";
       if (data.visaGrantDate) mapped.visaGrantDate = data.visaGrantDate;
       if (data.visaExpiryDate) mapped.visaExpiryDate = data.visaExpiryDate;
@@ -523,19 +523,19 @@ function crossCheckIdDocuments(allExtracted: Record<string, string>): string[] {
 
   if (licenceName && passportName && licenceName.toLowerCase() !== passportName.toLowerCase()) {
     discrepancies.push(
-      `â ï¸ Name mismatch: Licence says "${licenceName}" but passport says "${passportName}". Passport name will be used as Services Australia prefers passport details.`
+      `⚠️ Name mismatch: Licence says "${licenceName}" but passport says "${passportName}". Passport name will be used as Services Australia prefers passport details.`
     );
   }
 
   if (allExtracted.dob && allExtracted.passport_dob && allExtracted.dob !== allExtracted.passport_dob) {
     discrepancies.push(
-      `â ï¸ Date of birth mismatch: Licence says "${allExtracted.dob}" but passport says "${allExtracted.passport_dob}".`
+      `⚠️ Date of birth mismatch: Licence says "${allExtracted.dob}" but passport says "${allExtracted.passport_dob}".`
     );
   }
 
   if (allExtracted.gender && allExtracted.passport_gender && allExtracted.gender !== allExtracted.passport_gender) {
     discrepancies.push(
-      `â ï¸ Gender mismatch: Licence says "${allExtracted.gender}" but passport says "${allExtracted.passport_gender}".`
+      `⚠️ Gender mismatch: Licence says "${allExtracted.gender}" but passport says "${allExtracted.passport_gender}".`
     );
   }
 
@@ -553,7 +553,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
   const [discrepancies, setDiscrepancies] = useState<string[]>([]);
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // ââ Mobile scan session ââââââââââââââââââââââââââââââââââââââââââ
+  // ── Mobile scan session ──────────────────────────────────────────
   const [mobileCode] = useState<string>(() => generateMobileCode());
   const [mobileDocs, setMobileDocs] = useState(0);          // docs scanned on phone
   const [mobileFields, setMobileFields] = useState(0);      // fields received from phone
@@ -581,7 +581,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
       setMobileDocs(result.doc_count);
       setMobileFields(newFieldCount);
       setLastMobilePoll(result.doc_count);
-      toast.success(`ð± ${result.doc_count} document${result.doc_count !== 1 ? "s" : ""} received from your phone! ${newFieldCount} fields pre-filled.`);
+      toast.success(`📱 ${result.doc_count} document${result.doc_count !== 1 ? "s" : ""} received from your phone! ${newFieldCount} fields pre-filled.`);
     }, 4000);
 
     return () => clearInterval(interval);
@@ -591,7 +591,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
 
   const handleFile = async (slot: DocumentSlot, file: File) => {
     if (file.size > 15 * 1024 * 1024) {
-      toast.error("File too large â max 15MB");
+      toast.error("File too large — max 15MB");
       return;
     }
 
@@ -613,7 +613,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
       if (error) throw error;
 
       if (data?.error === "wrong_document_type") {
-        // Wrong document detected â show clear error
+        // Wrong document detected — show clear error
         setStatuses(prev => ({ ...prev, [slot.id]: "error" }));
         const actual = data.actual || "a different document";
         toast.error(
@@ -636,7 +636,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
         if (summary) setSummaries(prev => [...prev, summary]);
 
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
-        toast.success(`${slot.label} scanned! â ${fieldsCount} field${fieldsCount !== 1 ? "s" : ""} pre-filled.`);
+        toast.success(`${slot.label} scanned! ✅ ${fieldsCount} field${fieldsCount !== 1 ? "s" : ""} pre-filled.`);
       } else {
         throw new Error("No data extracted");
       }
@@ -679,7 +679,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
       >
         {/* Icon */}
         <span className="text-lg shrink-0 w-6 text-center">
-          {status === "done" ? "â" : status === "error" ? "â ï¸" : slot.icon}
+          {status === "done" ? "✅" : status === "error" ? "⚠️" : slot.icon}
         </span>
 
         {/* Label + description */}
@@ -710,7 +710,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
                 onClick={() => fileRefs.current[slot.id]?.click()}
                 className="rounded-lg bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground hover:opacity-90 transition-all"
               >
-                ð¸ Upload
+                📸 Upload
               </button>
               <button
                 onClick={() => handleSkipSlot(slot.id)}
@@ -722,10 +722,10 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           ) : status === "uploading" ? (
             <div className="flex items-center gap-1 text-[11px] text-primary font-semibold">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              Readingâ¦
+              Reading…
             </div>
           ) : status === "done" ? (
-            <span className="text-[11px] font-bold text-green-600 whitespace-nowrap">â Done</span>
+            <span className="text-[11px] font-bold text-green-600 whitespace-nowrap">✓ Done</span>
           ) : status === "skipped" ? (
             <button
               onClick={() => setStatuses(prev => ({ ...prev, [slot.id]: "idle" }))}
@@ -749,7 +749,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${dotColor}`} />
           <span className={`text-[11px] font-extrabold uppercase tracking-wide ${textColor}`}>
             {label}
-            {label.startsWith("Required") && ` â ${doneInGroup}/${slots.length} done`}
+            {label.startsWith("Required") && ` — ${doneInGroup}/${slots.length} done`}
           </span>
         </div>
         <div className="space-y-1.5">
@@ -760,13 +760,13 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
   };
 
   return (
-    // ââ Responsive wrapper: column on mobile, side-by-side on desktop ââ
+    // ── Responsive wrapper: column on mobile, side-by-side on desktop ──
     <div className="flex flex-col md:flex-row w-full min-h-0" style={{ maxHeight: "90vh" }}>
 
-      {/* ââââââââââââââââââââââââââââââââââââââââââââââââ
-          LEFT PANEL â document list (scrollable)
+      {/* ════════════════════════════════════════════════
+          LEFT PANEL — document list (scrollable)
           On mobile: full width. On desktop: 58% width.
-          ââââââââââââââââââââââââââââââââââââââââââââââââ */}
+          ════════════════════════════════════════════════ */}
       <div className="flex flex-col md:w-[58%] min-h-0 border-b md:border-b-0 md:border-r border-border">
 
         {/* Mobile-only mini header */}
@@ -774,15 +774,15 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           <div className="flex items-center justify-center gap-2 mb-2">
             <LumaAvatar size={40} />
             <div>
-              <h2 className="font-serif text-base font-extrabold text-foreground">ð Document Vault</h2>
+              <h2 className="font-serif text-base font-extrabold text-foreground">📁 Document Vault</h2>
               <div className="inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/5 px-2 py-0.5">
                 <span className="text-[10px] font-bold text-primary">{formConfig.formCode}</span>
-                <span className="text-[10px] text-muted-foreground">â {formConfig.formName}</span>
+                <span className="text-[10px] text-muted-foreground">— {formConfig.formName}</span>
               </div>
             </div>
           </div>
           <div className="rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-2">
-            <p className="text-[12px] font-extrabold text-primary">ð¸ Upload more â Answer less</p>
+            <p className="text-[12px] font-extrabold text-primary">📸 Upload more → Answer less</p>
             <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
               Every document you scan fills in questions automatically.
             </p>
@@ -790,7 +790,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           {autoFilledCount > 0 && (
             <div className="mt-2 inline-flex items-center rounded-full bg-green-500 px-3 py-1">
               <span className="text-white text-[11px] font-extrabold">
-                ð {autoFilledCount} fields auto-filled!
+                🎉 {autoFilledCount} fields auto-filled!
               </span>
             </div>
           )}
@@ -803,7 +803,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
 
         {/* Desktop column label */}
         <div className="hidden md:flex items-center gap-2 px-5 pt-5 pb-2 border-b border-border/60">
-          <span className="text-sm font-extrabold text-foreground">ð Your Documents</span>
+          <span className="text-sm font-extrabold text-foreground">📄 Your Documents</span>
           <span className="ml-auto text-[10px] text-muted-foreground flex gap-3">
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-400"/>Required</span>
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400"/>Recommended</span>
@@ -814,8 +814,8 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
         {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
           {renderGroup(required,    "Required",    "bg-red-400",   "text-red-600")}
-          {renderGroup(recommended, "Recommended â saves the most questions", "bg-amber-400", "text-amber-600")}
-          {renderGroup(optional,    "Optional â upload if you have them",     "bg-gray-300",  "text-muted-foreground")}
+          {renderGroup(recommended, "Recommended — saves the most questions", "bg-amber-400", "text-amber-600")}
+          {renderGroup(optional,    "Optional — upload if you have them",     "bg-gray-300",  "text-muted-foreground")}
         </div>
 
         {/* Mobile-only footer */}
@@ -823,38 +823,38 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           <button onClick={handleDone}
             className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 shadow-lg">
             {doneCount > 0
-              ? `Continue with ${doneCount} doc${doneCount !== 1 ? "s" : ""} â (${autoFilledCount} fields pre-filled)`
-              : "Start without documents â"}
+              ? `Continue with ${doneCount} doc${doneCount !== 1 ? "s" : ""} → (${autoFilledCount} fields pre-filled)`
+              : "Start without documents →"}
           </button>
           <button onClick={onSkipAll}
             className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary">
-            Skip all â I'll type everything manually
+            Skip all — I'll type everything manually
           </button>
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-            ð Scanned securely, never stored.
+            🔒 Scanned securely, never stored.
           </p>
         </div>
       </div>
 
-      {/* ââââââââââââââââââââââââââââââââââââââââââââââââ
-          RIGHT PANEL â sticky sidebar (desktop only)
-          ââââââââââââââââââââââââââââââââââââââââââââââââ */}
+      {/* ════════════════════════════════════════════════
+          RIGHT PANEL — sticky sidebar (desktop only)
+          ════════════════════════════════════════════════ */}
       <div className="hidden md:flex flex-col md:w-[42%] bg-gradient-to-b from-primary/5 to-background">
 
         {/* Header with Luma avatar */}
         <div className="px-6 pt-6 pb-4 text-center border-b border-border/60">
           <LumaAvatar size={60} />
-          <h2 className="mt-3 font-serif text-lg font-extrabold text-foreground">ð Document Vault</h2>
+          <h2 className="mt-3 font-serif text-lg font-extrabold text-foreground">📁 Document Vault</h2>
           <div className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-0.5">
             <span className="text-[11px] font-bold text-primary">{formConfig.formCode}</span>
-            <span className="text-[11px] text-muted-foreground">â {formConfig.formName}</span>
+            <span className="text-[11px] text-muted-foreground">— {formConfig.formName}</span>
           </div>
 
           {/* KEY MESSAGE */}
           <div className="mt-3 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-left">
-            <p className="text-sm font-extrabold text-primary">ð¸ Upload more â Answer less</p>
+            <p className="text-sm font-extrabold text-primary">📸 Upload more → Answer less</p>
             <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
-              Every document you scan auto-fills the matching form questions â
+              Every document you scan auto-fills the matching form questions —
               so you don't have to type them manually.
               The more you upload <span className="font-bold text-foreground">now</span>,
               the fewer questions Luma will ask.
@@ -890,7 +890,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
             </div>
             {autoFilledCount === 0 && (
               <p className="mt-2 text-[10px] text-muted-foreground italic">
-                Upload your first document to see this number climb â
+                Upload your first document to see this number climb →
               </p>
             )}
           </div>
@@ -898,7 +898,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           {/* Discrepancies */}
           {discrepancies.length > 0 && (
             <div className="rounded-xl border border-yellow-500/30 bg-yellow-50 p-3">
-              <div className="text-xs font-bold text-foreground mb-1">ð Luma noticed some differences:</div>
+              <div className="text-xs font-bold text-foreground mb-1">🔍 Luma noticed some differences:</div>
               {discrepancies.map((d, i) => (
                 <p key={i} className="text-[11px] text-foreground/80">{d}</p>
               ))}
@@ -908,7 +908,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
           {/* What Luma found */}
           {summaries.length > 0 ? (
             <div className="rounded-xl border border-green-500/30 bg-green-50 p-3">
-              <div className="text-xs font-bold text-foreground mb-2">â What Luma found so far:</div>
+              <div className="text-xs font-bold text-foreground mb-2">✅ What Luma found so far:</div>
               <div className="space-y-1">
                 {summaries.map((s, i) => (
                   <p key={i} className="text-[11px] text-foreground/80 leading-snug">{s}</p>
@@ -923,16 +923,16 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
             </div>
           )}
 
-          {/* ââ PHONE SCAN PANEL ââ */}
+          {/* ── PHONE SCAN PANEL ── */}
           <div className={`rounded-xl border-2 p-4 transition-all ${
             mobileDocs > 0
               ? "border-green-500/50 bg-green-50"
               : "border-primary/30 bg-primary/5"
           }`}>
             {mobileDocs > 0 ? (
-              // ââ RECEIVED STATE ââ
+              // ── RECEIVED STATE ──
               <div className="text-center">
-                <div className="text-2xl">ð±â</div>
+                <div className="text-2xl">📱✅</div>
                 <p className="mt-1 text-xs font-extrabold text-green-700">
                   {mobileDocs} document{mobileDocs !== 1 ? "s" : ""} received from your phone!
                 </p>
@@ -948,13 +948,13 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
                 <p className="mt-1 text-[9px] text-muted-foreground font-mono">{mobileCode}</p>
               </div>
             ) : (
-              // ââ WAITING STATE ââ
+              // ── WAITING STATE ──
               <div>
                 <p className="text-xs font-extrabold text-primary text-center mb-1">
-                  ð± Easier on your phone?
+                  📱 Easier on your phone?
                 </p>
                 <p className="text-[10px] text-muted-foreground text-center leading-snug mb-3">
-                  Scan this QR code with your phone camera. Use your phone to photograph documents â results sync here automatically.
+                  Scan this QR code with your phone camera. Use your phone to photograph documents — results sync here automatically.
                 </p>
                 <div className="flex justify-center">
                   <div className="bg-white p-2.5 rounded-xl border-2 border-primary/20 shadow-sm inline-block">
@@ -966,7 +966,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
                   Session code: <span className="font-mono font-bold text-foreground">{mobileCode}</span>
                 </p>
                 <p className="mt-1.5 text-center text-[9px] text-muted-foreground italic">
-                  Waiting for phoneâ¦ scanning every 4 seconds
+                  Waiting for phone… scanning every 4 seconds
                 </p>
                 <div className="mt-2 flex justify-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -979,12 +979,12 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
 
           {/* Tips */}
           <div className="rounded-xl border border-border bg-card p-3">
-            <div className="text-[11px] font-bold text-foreground mb-1.5">ð¡ Tips</div>
+            <div className="text-[11px] font-bold text-foreground mb-1.5">💡 Tips</div>
             <ul className="space-y-1 text-[10px] text-muted-foreground">
-              <li>ð± <span className="font-semibold">Phone camera</span> â scan the QR above for best results</li>
-              <li>ð <span className="font-semibold">PDF files</span> â accepted for bank/medical docs</li>
-              <li>âï¸ <span className="font-semibold">Good lighting</span> â helps Luma read text clearly</li>
-              <li>ð <span className="font-semibold">100% private</span> â deleted immediately after scan</li>
+              <li>📱 <span className="font-semibold">Phone camera</span> — scan the QR above for best results</li>
+              <li>📄 <span className="font-semibold">PDF files</span> — accepted for bank/medical docs</li>
+              <li>☀️ <span className="font-semibold">Good lighting</span> — helps Luma read text clearly</li>
+              <li>🔒 <span className="font-semibold">100% private</span> — deleted immediately after scan</li>
             </ul>
           </div>
         </div>
@@ -996,17 +996,17 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
             className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 shadow-lg transition-all"
           >
             {doneCount > 0
-              ? `Continue â ${autoFilledCount} fields pre-filled`
-              : "Start without documents â"}
+              ? `Continue → ${autoFilledCount} fields pre-filled`
+              : "Start without documents →"}
           </button>
           <button
             onClick={onSkipAll}
             className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-primary transition-colors"
           >
-            Skip all â I'll type everything manually
+            Skip all — I'll type everything manually
           </button>
           <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-            ð Scanned securely, never stored. Deleted immediately after reading.
+            🔒 Scanned securely, never stored. Deleted immediately after reading.
           </p>
         </div>
       </div>
