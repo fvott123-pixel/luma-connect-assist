@@ -104,6 +104,7 @@ export default function MobileUpload() {
       if (data?.extracted) {
         const extracted = data.extracted as Record<string, string>;
         const fieldKeys = Object.keys(extracted).filter(k => extracted[k]?.trim());
+      if (fieldKeys.length === 0) throw new Error("No data extracted");
         const summary = `${slot.label}: ${fieldKeys.length} field${fieldKeys.length !== 1 ? "s" : ""} found`;
         await pushMobileData(code, extracted, [summary]);
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
