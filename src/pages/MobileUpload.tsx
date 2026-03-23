@@ -156,8 +156,8 @@ export default function MobileUpload() {
             <>
               <input
                 ref={el => { fileRefs.current[slot.id] = el; }}
-                type="file" accept={slot.accept} capture="environment"
-                className="hidden"
+                type="file" accept={slot.accept}
+                className="sr-only"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(slot, f); e.target.value = ""; }}
               />
               <button
