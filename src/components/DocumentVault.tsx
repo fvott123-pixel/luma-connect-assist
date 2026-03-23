@@ -559,6 +559,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
   const [mobileFields, setMobileFields] = useState(0);      // fields received from phone
   const [lastMobilePoll, setLastMobilePoll] = useState(0);  // doc_count at last merge
   const mobileUrl = `${window.location.origin}/mobile-upload/${mobileCode}`;
+  const [showDemo, setShowDemo] = useState(false);
 
   // Poll every 4 seconds for data pushed by the mobile page
   useEffect(() => {
