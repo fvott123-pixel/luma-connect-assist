@@ -12,16 +12,15 @@ import { toast } from "sonner";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 
 // Re-use the same field mapping from DocumentVault
-// (imported inline to avoid circular deps — copy of the logic)
+// (imported inline to avoid circular deps)
 function mapToFormFields(documentType: string, data: Record<string, string>): Record<string, string> {
-  // We just pass raw extracted data — desktop merges properly
   return data;
 }
 
 /**
  * Compress image to max 1600px JPEG.
  * On iOS, Safari decodes HEIC natively via Image + canvas — output is always JPEG.
- * This fixes HEIC rejections from Anthropic and reduces 3-5 MB photos to ~100-300 KB.
+ * Fixes HEIC rejections from Anthropic and reduces 3-5 MB photos to ~100-300 KB.
  */
 async function compressImage(file: File): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
@@ -91,7 +90,6 @@ export default function MobileUpload() {
       // Compress & convert to JPEG (handles HEIC on iOS via canvas automatically)
       const { base64, mimeType: imgMime } = await compressImage(file);
 
-      // Extract via Supabase function
       const { data, error } = await supabase.functions.invoke("extract-document", {
         body: { image: base64, mimeType: imgMime, documentType: slot.documentType },
       });
@@ -107,10 +105,7 @@ export default function MobileUpload() {
         const extracted = data.extracted as Record<string, string>;
         const fieldKeys = Object.keys(extracted).filter(k => extracted[k]?.trim());
         const summary = `${slot.label}: ${fieldKeys.length} field${fieldKeys.length !== 1 ? "s" : ""} found`;
-
-        // Sync to desktop via edge function
         await pushMobileData(code, extracted, [summary]);
-
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
         setSyncCount(c => c + 1);
         setFieldCount(c => c + fieldKeys.length);
@@ -217,8 +212,6 @@ export default function MobileUpload() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-
-      {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center gap-3 shadow-sm">
         <LumaAvatar size={36} />
         <div>
@@ -231,8 +224,6 @@ export default function MobileUpload() {
           </div>
         )}
       </div>
-
-      {/* Instructions */}
       <div className="mx-4 mt-4 rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3 text-center">
         <p className="text-sm font-extrabold text-primary">📸 Scan your documents here</p>
         <p className="mt-1 text-[11px] text-muted-foreground leading-snug">
@@ -240,15 +231,11 @@ export default function MobileUpload() {
           Use your phone camera for best results.
         </p>
       </div>
-
-      {/* Document list */}
       <div className="flex-1 px-4 py-4 space-y-5 overflow-y-auto pb-24">
         {renderGroup(required, "Required", "bg-red-400", "text-red-600")}
         {renderGroup(recommended, "Recommended — saves the most questions", "bg-amber-400", "text-amber-600")}
         {renderGroup(optional, "Optional", "bg-gray-300", "text-muted-foreground")}
       </div>
-
-      {/* Sticky footer */}
       <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border px-4 py-3 safe-area-inset-bottom">
         <button
           onClick={() => setFinished(true)}
@@ -262,7 +249,6 @@ export default function MobileUpload() {
           🔒 Scanned securely, never stored, deleted immediately after reading.
         </p>
       </div>
-
     </div>
   );
 }
