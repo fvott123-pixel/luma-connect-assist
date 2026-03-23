@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import { getFormDocuments, PRIORITY_LABELS, type DocSlot } from "@/lib/formDocuments";
 import LumaAvatar from "@/components/landing/LumaAvatar";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
 import { generateMobileCode, pollMobileData } from "@/lib/mobileSession";
+const PhoneCameraDemo = lazy(() => import("@/components/PhoneCameraDemo").then(m => ({ default: m.PhoneCameraDemo })));
 
 export interface DocumentSlot {
   id: string;
@@ -558,6 +559,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
   const [mobileFields, setMobileFields] = useState(0);      // fields received from phone
   const [lastMobilePoll, setLastMobilePoll] = useState(0);  // doc_count at last merge
   const mobileUrl = `${window.location.origin}/mobile-upload/${mobileCode}`;
+  const [showDemo, setShowDemo] = useState(false);
 
   // Poll every 4 seconds for data pushed by the mobile page
   useEffect(() => {
@@ -972,7 +974,19 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
               <li>☀️ <span className="font-semibold">Good lighting</span> — helps Luma read text clearly</li>
               <li>🔒 <span className="font-semibold">100% private</span> — deleted immediately after scan</li>
             </ul>
+            <button
+              onClick={() => setShowDemo(true)}
+              className="mt-2 w-full rounded-lg border border-primary/20 bg-primary/5 py-1.5 text-[11px] font-bold text-primary hover:bg-primary/10 transition-colors"
+            >
+              ▶️ Watch how it works
+            </button>
           </div>
+
+          {showDemo && (
+            <Suspense fallback={null}>
+              <PhoneCameraDemo onClose={() => setShowDemo(false)} />
+            </Suspense>
+          )}
         </div>
 
         {/* Sticky CTA */}
