@@ -8,14 +8,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { pushMobileData } from "@/lib/mobileSession";
 import { getFormDocuments, type DocSlot } from "@/lib/formDocuments";
+import { mapToFormFields } from "@/lib/mapToFormFields";
 import { toast } from "sonner";
 import LumaAvatar from "@/components/landing/LumaAvatar";
-
-// Re-use the same field mapping from DocumentVault
-// (imported inline to avoid circular deps)
-function mapToFormFields(documentType: string, data: Record<string, string>): Record<string, string> {
-  return data;
-}
 
 /**
  * Compress image to max 1600px JPEG.
