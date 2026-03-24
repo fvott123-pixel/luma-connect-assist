@@ -14,7 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      mobile_upload_sessions: {
+        Row: {
+          created_at: string
+          doc_count: number
+          extracted: Json
+          id: string
+          session_code: string
+          summaries: Json
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          doc_count?: number
+          extracted?: Json
+          id?: string
+          session_code: string
+          summaries?: Json
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          doc_count?: number
+          extracted?: Json
+          id?: string
+          session_code?: string
+          summaries?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
