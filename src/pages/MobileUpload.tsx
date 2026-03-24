@@ -8,14 +8,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { pushMobileData } from "@/lib/mobileSession";
 import { getFormDocuments, type DocSlot } from "@/lib/formDocuments";
+import { mapToFormFields } from "@/lib/mapToFormFields";
 import { toast } from "sonner";
 import LumaAvatar from "@/components/landing/LumaAvatar";
-
-// Re-use the same field mapping from DocumentVault
-// (imported inline to avoid circular deps)
-function mapToFormFields(documentType: string, data: Record<string, string>): Record<string, string> {
-  return data;
-}
 
 /**
  * Compress image to max 1600px JPEG.
@@ -102,11 +97,12 @@ export default function MobileUpload() {
       }
 
       if (data?.extracted) {
-        const extracted = data.extracted as Record<string, string>;
-        const fieldKeys = Object.keys(extracted).filter(k => extracted[k]?.trim());
+        const raw = data.extracted as Record<string, string>;
+        const mapped = mapToFormFields(slot.documentType, raw);
+        const fieldKeys = Object.keys(mapped).filter(k => mapped[k]?.trim());
       if (fieldKeys.length === 0) throw new Error("No data extracted");
         const summary = `${slot.label}: ${fieldKeys.length} field${fieldKeys.length !== 1 ? "s" : ""} found`;
-        await pushMobileData(code, extracted, [summary]);
+        await pushMobileData(code!, mapped, [summary]);
         setStatuses(prev => ({ ...prev, [slot.id]: "done" }));
         setSyncCount(c => c + 1);
         setFieldCount(c => c + fieldKeys.length);
