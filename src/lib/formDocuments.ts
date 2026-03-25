@@ -161,7 +161,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "workersCompLetter", label: "Workers Compensation Letter", icon: "⚖️",
     description: "Fills: compensation amount, insurer, claim reference",
     fills: "compensation details, insurer name, claim reference",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
+    documentType: "workersCompLetter", accept: "image/*,.pdf", priority: "optional",
   },
   careRecipientId: {
     id: "careRecipientId", label: "Care Recipient's ID (licence or passport)", icon: "🪪",
