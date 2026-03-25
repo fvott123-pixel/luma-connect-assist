@@ -125,7 +125,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "visaGrantLetter", label: "Visa Grant Letter", icon: "🌏",
     description: "Fills: visa class, visa grant date, visa expiry",
     fills: "visa class, grant date, expiry date",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "recommended",
+    documentType: "visaGrantLetter", accept: "image/*,.pdf", priority: "recommended",
   },
   birthCertificate: {
     id: "birthCertificate", label: "Birth Certificate", icon: "📜",
