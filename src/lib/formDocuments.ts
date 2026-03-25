@@ -241,7 +241,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "vehicleRegistration", label: "Vehicle Registration Papers", icon: "🚗",
     description: "Fills: vehicle make/model, registration number, market value",
     fills: "vehicle details, registration number",
-    documentType: "ratesNotice", accept: "image/*,.pdf", priority: "optional",
+    documentType: "vehicleRegistration", accept: "image/*,.pdf", priority: "optional",
   },
 };
 
