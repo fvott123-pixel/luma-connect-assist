@@ -155,7 +155,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "programOfSupportCert", label: "Program of Support Certificate", icon: "📑",
     description: "Confirms participation in Workforce Australia or job program (Q139)",
     fills: "program of support provider, dates",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "required",
+    documentType: "programOfSupportCert", accept: "image/*,.pdf", priority: "required",
   },
   workersCompLetter: {
     id: "workersCompLetter", label: "Workers Compensation Letter", icon: "⚖️",
