@@ -113,7 +113,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "superStatement", label: "Superannuation Statement", icon: "💰",
     description: "Fills: super fund name, account number, balance",
     fills: "super fund name, account number, balance",
-    documentType: "bankStatement", accept: "image/*,.pdf", priority: "recommended",
+    documentType: "superStatement", accept: "image/*,.pdf", priority: "recommended",
   },
   payslips: {
     id: "payslips", label: "Recent Payslips (last 3)", icon: "💵",
