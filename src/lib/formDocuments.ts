@@ -167,7 +167,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "careRecipientId", label: "Care Recipient's ID (licence or passport)", icon: "🪪",
     description: "Fills: the name, DOB and address of the person you care for",
     fills: "care recipient name, DOB, address",
-    documentType: "licenceFront", accept: "image/*", priority: "required",
+    documentType: "careRecipientId", accept: "image/*", priority: "required",
   },
   careRecipientMedical: {
     id: "careRecipientMedical", label: "Care Recipient's Medical Report", icon: "🏥",
