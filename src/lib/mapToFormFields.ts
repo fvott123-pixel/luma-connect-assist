@@ -300,6 +300,12 @@ export function mapToFormFields(documentType: string, data: Record<string, strin
       if (data.clientName || data.firstName) mapped.firstName = mapped.firstName || data.clientName || data.firstName || "";
       break;
     }
+    case "payslips": {
+      if (data.employerName) mapped.employerLastYear = data.employerName;
+      if (data.grossPay) mapped.weeklyIncome = data.grossPay;
+      if (data.hoursWorked) mapped.hoursWorked = data.hoursWorked;
+      break;
+    }
   }
 
   return Object.fromEntries(Object.entries(mapped).filter(([, v]) => v && v.trim() !== ""));
