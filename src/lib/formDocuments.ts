@@ -197,7 +197,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "ratesNotice", label: "Council Rates Notice", icon: "🏡",
     description: "Fills: property address, owner name (if you own property)",
     fills: "property address, owner name, property value",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
+    documentType: "ratesNotice", accept: "image/*,.pdf", priority: "optional",
   },
 
   // ── NEW: missing from deep audit ──────────────────────────────────
