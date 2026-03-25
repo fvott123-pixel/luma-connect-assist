@@ -131,7 +131,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "birthCertificate", label: "Birth Certificate", icon: "📜",
     description: "Fills: full name, date of birth, country of birth, parents' names",
     fills: "full name, DOB, country of birth",
-    documentType: "passport", accept: "image/*,.pdf", priority: "optional",
+    documentType: "birthCertificate", accept: "image/*,.pdf", priority: "optional",
   },
   marriageCertificate: {
     id: "marriageCertificate", label: "Marriage / Relationship Certificate", icon: "💍",
