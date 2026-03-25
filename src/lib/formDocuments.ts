@@ -191,7 +191,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "investmentStatement", label: "Investment / Shares Statement", icon: "📈",
     description: "Fills: shares/managed fund value for assets test",
     fills: "shares value, fund name",
-    documentType: "bankStatement", accept: "image/*,.pdf", priority: "optional",
+    documentType: "investmentStatement", accept: "image/*,.pdf", priority: "optional",
   },
   ratesNotice: {
     id: "ratesNotice", label: "Council Rates Notice", icon: "🏡",
