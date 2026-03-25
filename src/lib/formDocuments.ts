@@ -143,7 +143,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "hospitalDischarge", label: "Hospital Discharge Summary", icon: "🏨",
     description: "Fills: diagnosis, treatment, hospital doctor, dates",
     fills: "condition, treatment history, doctor details, hospital dates",
-    documentType: "medicalReport", accept: "image/*,.pdf", priority: "recommended",
+    documentType: "hospitalDischarge", accept: "image/*,.pdf", priority: "recommended",
   },
   medicationList: {
     id: "medicationList", label: "Medication List or Prescription", icon: "💊",
