@@ -173,7 +173,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "careRecipientMedical", label: "Care Recipient's Medical Report", icon: "🏥",
     description: "Fills: the condition and medical details of the person you care for",
     fills: "care recipient diagnosis, treatment, doctor details",
-    documentType: "medicalReport", accept: "image/*,.pdf", priority: "required",
+    documentType: "careRecipientMedical", accept: "image/*,.pdf", priority: "required",
   },
   ndisLetter: {
     id: "ndisLetter", label: "NDIS Letter or Plan", icon: "♿",
