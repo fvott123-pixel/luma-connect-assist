@@ -708,7 +708,7 @@ const DocumentVault = ({ onComplete, onSkipAll, formSlug = "disability-support-p
             onClick={handleDone}
             className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground hover:opacity-90 shadow-lg transition-all"
           >
-            {doneCount > 0
+            {(doneCount > 0 || mobileDocs > 0 || autoFilledCount > 0)
               ? `Continue → ${autoFilledCount} fields pre-filled`
               : "Start without documents →"}
           </button>
