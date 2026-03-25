@@ -119,7 +119,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "payslips", label: "Recent Payslips (last 3)", icon: "💵",
     description: "Fills: employer name, income, hours worked",
     fills: "employer name, weekly income, hours worked",
-    documentType: "separationCertificate", accept: "image/*,.pdf", priority: "recommended",
+    documentType: "payslips", accept: "image/*,.pdf", priority: "recommended",
   },
   visaGrantLetter: {
     id: "visaGrantLetter", label: "Visa Grant Letter", icon: "🌏",
