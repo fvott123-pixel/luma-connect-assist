@@ -179,7 +179,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "ndisLetter", label: "NDIS Letter or Plan", icon: "♿",
     description: "Fills: NDIS number, disability type, support needs",
     fills: "NDIS number, disability category, support needs",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
+    documentType: "ndisLetter", accept: "image/*,.pdf", priority: "optional",
   },
   dvaCertificate: {
     id: "dvaCertificate", label: "DVA Card or Letter", icon: "🎖️",
