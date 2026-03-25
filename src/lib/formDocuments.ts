@@ -149,7 +149,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "medicationList", label: "Medication List or Prescription", icon: "💊",
     description: "Fills: current medications and prescribing doctor",
     fills: "current treatment medications, prescribing doctor name",
-    documentType: "doctorLetter", accept: "image/*,.pdf", priority: "recommended",
+    documentType: "medicationList", accept: "image/*,.pdf", priority: "recommended",
   },
   programOfSupportCert: {
     id: "programOfSupportCert", label: "Program of Support Certificate", icon: "📑",
