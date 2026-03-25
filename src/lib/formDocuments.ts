@@ -235,7 +235,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "redundancyLetter", label: "Redundancy or Termination Letter", icon: "📄",
     description: "Fills: redundancy payment amount, date terminated, employer name",
     fills: "redundancy amount, termination date, employer name",
-    documentType: "separationCertificate", accept: "image/*,.pdf", priority: "optional",
+    documentType: "redundancyLetter", accept: "image/*,.pdf", priority: "optional",
   },
   vehicleRegistration: {
     id: "vehicleRegistration", label: "Vehicle Registration Papers", icon: "🚗",
