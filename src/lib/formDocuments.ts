@@ -137,7 +137,7 @@ const SHARED: Record<string, DocSlot> = {
     id: "marriageCertificate", label: "Marriage / Relationship Certificate", icon: "💍",
     description: "Fills: partner name, relationship date, relationship type",
     fills: "partner name, marriage/relationship date",
-    documentType: "taxLetter", accept: "image/*,.pdf", priority: "optional",
+    documentType: "marriageCertificate", accept: "image/*,.pdf", priority: "optional",
   },
   hospitalDischarge: {
     id: "hospitalDischarge", label: "Hospital Discharge Summary", icon: "🏨",
